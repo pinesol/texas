@@ -109,3 +109,22 @@ computeMLTD(first_text)
 # 88.26471
 computeMLTD(second_text)
 # 95.07937
+
+# Question 2
+
+s1 <- "The tip of the tongue taking a trip of three steps down the palate to tap, at three, on the teeth."
+s2 <- "Kevin tripped and chipped his tooth on the way to platform number three."
+
+s1_tokens <- sort(unique(tokenize(toLower(s1), simplify=TRUE, removePunct=TRUE)))
+s2_tokens <- sort(unique(tokenize(toLower(s2), simplify=TRUE, removePunct=TRUE)))
+
+s1_dfm = dfm(s1, removePunct=TRUE, toLower=TRUE)
+s2_dfm = dfm(s2, removePunct=TRUE, toLower=TRUE)
+
+
+
+
+
+
+
+
