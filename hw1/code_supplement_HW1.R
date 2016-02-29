@@ -1,6 +1,7 @@
 ##Code for homework 1 Question 3
 library(quanteda)
 library(quantedaData)
+
 # DONE load each document into a corpus, since the dfm constructor with the 'groups' param takes one. 'groups' is a docvar.
 # DONE set the 'groups' docvar to associate authors with texts
 # DONE create a function to make a dfm from corpus, selecting on the authors (or lack thereof). 
@@ -11,7 +12,7 @@ library(quantedaData)
 # DONE make a dfm 'austen_snippets' from the larger corpus
 # DONE make a dfm 'mystery_dfm' from the mystery document
 
-# TODO TODO I must have done something wrong....this just hangs.
+# TODO TODO I must have done something wrong....this just hangs. Try running on a mini corpus
 # TODO ots of things still don't seem to have a header
 
 # TODO delete this, it's too hard to use. just throw out the blocks at the beginning and end.
@@ -40,6 +41,7 @@ removeChaff <- function(text) {
 #last_speech_text<-inaugCorpus$document$texts[57]
 createDfm <- function(corpus, funcWordDict) {
   allBlocks = character(0)
+  authorsByBlock = character(0)
   kBlockSize = 1700
   for (i in 1:length(corpus$documents$texts)) {
     text = corpus$documents$texts[[i]]
@@ -49,15 +51,19 @@ createDfm <- function(corpus, funcWordDict) {
     #selectFeatures(tokens, funcWordDict)  # keep only function words
     # Partition the tokens into blocks
     partitionIndices = seq(1, length(tokens), kBlockSize)
-    blocks = lapply(partitionIndices, 
-                    function(i) tokens[i:min(i+kBlockSize-1, length(tokens))])
+    blocks = sapply(partitionIndices, 
+                    function(i) tokens[i:min(i+kBlockSize-1, length(tokens))])    
+    # rejoining all the tokens together, because I can't figure out how to make 
+    # the dfm constructor take a list of lists as input.
+    author = docvars(textCorpus, 'authors')[[i]]
     for (j in 1:length(blocks)) {
       allBlocks <- c(allBlocks, paste(blocks[j], collapse=" "))
+      authorsByBlock <- c(authorsByBlock, author)
     }
   }
   blockDfm = dfm(allBlocks)
-  selectFeatures(blockDfm, funcWordDict)  # keep only function words
-  return(blockDfm)
+  blockDfm = selectFeatures(blockDfm, funcWordDict)  # keep only function words
+  return(list(blockDfm, authorsByBlock))
 }
 
 
@@ -78,12 +84,13 @@ functionWords = c('a', 'been', 'had', 'its', 'one', 'the', 'were', 'all', 'but',
                   'from', 'it', 'on', 'that', 'was')
 funcWordDict = dictionary(list(func = functionWords))
 
-snippets_dfm = createDfm(textCorpus, funcWordDict)
-austen_snippets = createDfm(austenCorpus, funcWordDict)
-dickens_snippets = createDfm(dickensCorpus, funcWordDict)
-mystery_dfm = createDfm(mysteryCorpus, funcWordDict)
-
-# TODO I must have done something wrong....this takes forever to run.
+#snippets_dfm = createDfm(textCorpus, funcWordDict)
+fullTextTuple = createDfm(textCorpus, funcWordDict)
+snippets_dfm = fullTextTuple[[1]]
+authors = fullTextTuple[[2]]
+austen_snippets = createDfm(austenCorpus, funcWordDict)[[1]]
+dickens_snippets = createDfm(dickensCorpus, funcWordDict)[[1]]
+mystery_dfm = createDfm(mysteryCorpus, funcWordDict)[[1]]
 
 ##Question 3 : PCA 
 
@@ -96,12 +103,12 @@ snippets_pca<-prcomp(snippets_dfm, center=TRUE, scale.=TRUE)
 plot(snippets_pca, type = "l")
 
 ##packages for visualization--code taken from http://www.r-bloggers.com/computing-and-visualizing-pca-in-r/
+#
+#library(devtools)
+#install_github("ggbiplot", "vqv")
+#library(ggbiplot)
 
-install_github("ggbiplot", "vqv")
-
-library(ggbiplot)
-
-
+# TODO Why didn't they tell us how 'authors' worked?
 g <- ggbiplot(snippets_pca, obs.scale = 1, var.scale = 1, 
               groups = authors)
 g<- g + theme(legend.direction = 'horizontal', 
@@ -116,6 +123,7 @@ predicted<-predict(snippets_pca, newdata=mystery_dfm)
 
 ##Fisher's linear discrimination rule: choose the group that has a closer group mean; just 2 dimensions
 
+# TODO what are these supposed to be? Please define a clear interface using functions!
 
 d<-length(dickens_snippets)
 a<-length(austen_snippets)
@@ -124,8 +132,8 @@ a<-length(austen_snippets)
 #find the mean of the first two PCs 
 austen_pc1_mean<-mean(snippets_pca$x[1:a,1])
 austen_pc2_mean<-mean(snippets_pca$x[1:a,2])
-
-
+# TODO I think he forgot to concatenate the two. Add it below.
+austen_mean <- c(austen_pc1_mean, austen_pc2_mean)
 
 dickens_pc1_mean<-mean(snippets_pca$x[327:1033,1])
 dickens_pc2_mean<-mean(snippets_pca$x[327:1033,2])
@@ -136,7 +144,7 @@ mystery_pc1_mean<-mean(predicted[,1])
 mystery_pc2_mean<-mean(predicted[,2])
 mystery_mean<-c(mystery_pc1_mean, mystery_pc2_mean)
 
-##now you need to find which is closer to the mystery mean
+##TODO TODO now you need to find which is closer to the mystery mean
 
 # Question 4 Zipf's Law and Heap's Law
 
@@ -171,13 +179,3 @@ numTypes-estimatedNumTypes
 
 # Question 5
 kwic(textCorpus, "class", 6)
-
-
-#Question 6: filtering text
-
-library(dplyr)
-
-##apply to your data frame of the texts of the manifestos 
-
-df<-filter(df, grepl("^\\?", df$text)==FALSE &grepl("^\\d", df$text) ==FALSE)
-df<-filter(df, ntoken(df$text)>3)
