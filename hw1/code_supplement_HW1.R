@@ -2,20 +2,7 @@
 library(quanteda)
 library(quantedaData)
 
-# DONE load each document into a corpus, since the dfm constructor with the 'groups' param takes one. 'groups' is a docvar.
-# DONE set the 'groups' docvar to associate authors with texts
-# DONE create a function to make a dfm from corpus, selecting on the authors (or lack thereof). 
-#      The param should set the value of dfm's 'groups' param.
-#      this function should use selectFeatures to extract only function words. Use a dictioary object to create the function word list.
-# DONE make a dfm 'snippets_dfm' from the corpus
-# DONE make a dfm 'dickens_snippets' from the larger corpus
-# DONE make a dfm 'austen_snippets' from the larger corpus
-# DONE make a dfm 'mystery_dfm' from the mystery document
 
-# TODO TODO I must have done something wrong....this just hangs. Try running on a mini corpus
-# TODO ots of things still don't seem to have a header
-
-# TODO delete this, it's too hard to use. just throw out the blocks at the beginning and end.
 removeChaff <- function(text) {
   headerEndRegexp = "\\*\\*\\* START OF TH.*$"
   
@@ -108,7 +95,6 @@ plot(snippets_pca, type = "l")
 #install_github("ggbiplot", "vqv")
 #library(ggbiplot)
 
-# TODO Why didn't they tell us how 'authors' worked?
 g <- ggbiplot(snippets_pca, obs.scale = 1, var.scale = 1, 
               groups = authors)
 g<- g + theme(legend.direction = 'horizontal', 
@@ -123,20 +109,16 @@ predicted<-predict(snippets_pca, newdata=mystery_dfm)
 
 ##Fisher's linear discrimination rule: choose the group that has a closer group mean; just 2 dimensions
 
-# TODO what are these supposed to be? Please define a clear interface using functions!
-
-d<-length(dickens_snippets)
-a<-length(austen_snippets)
-
+d <- dickens_snippets@Dim[1]
+a <- austen_snippets@Dim[1]
 
 #find the mean of the first two PCs 
 austen_pc1_mean<-mean(snippets_pca$x[1:a,1])
 austen_pc2_mean<-mean(snippets_pca$x[1:a,2])
-# TODO I think he forgot to concatenate the two. Add it below.
 austen_mean <- c(austen_pc1_mean, austen_pc2_mean)
 
-dickens_pc1_mean<-mean(snippets_pca$x[327:1033,1])
-dickens_pc2_mean<-mean(snippets_pca$x[327:1033,2])
+dickens_pc1_mean<-mean(snippets_pca$x[(a+1):(a+d),1])
+dickens_pc2_mean<-mean(snippets_pca$x[(a+1):(a+d),2])
 dickens_mean<-c(dickens_pc1_mean, dickens_pc2_mean)
 
 
@@ -144,7 +126,9 @@ mystery_pc1_mean<-mean(predicted[,1])
 mystery_pc2_mean<-mean(predicted[,2])
 mystery_mean<-c(mystery_pc1_mean, mystery_pc2_mean)
 
-##TODO TODO now you need to find which is closer to the mystery mean
+## now you need to find which is closer to the mystery mean
+mystery_dickens_dist = dist(rbind(mystery_mean, dickens_mean)) # 5.997075
+mystery_austen_dist = dist(rbind(mystery_mean, austen_mean)) # 3.251736
 
 # Question 4 Zipf's Law and Heap's Law
 
