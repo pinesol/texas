@@ -1,14 +1,5 @@
 # Question 6: filtering text
 
-# DONE split the text up by sentences (use quanteda's tokenize?)
-# DONE Use their code below to filter the text more.
-# DONE Add this into a data frame in such a way that the years have a column
-# TODO bootstrap using code from lab2.
-# TODO make a graph
-# TODO print means of bootstrapped FRE scores
-# TODO print means of observed in the data (?)
-# TODO calculate more FRE and DC scores and report their correlation?
-
 library(dplyr)
 
 library(quanteda)
@@ -121,6 +112,12 @@ points(allYears_FRE_agg, y.axis+2*adjust,pch=21,cex=.8, bg="gray")
 
 # Get FRE and DC score for each year
 unsplit_df <- data.frame(year = files, text = text , stringsAsFactors = FALSE)
+# FRE
 unsplit_FRE <- readability(unsplit_df$text, "Flesch")
+# Dale Chall
+unsplit_DC <- readability(unsplit_df$text, "Dale.Chall")
+# correlation
+cor(unsplit_FRE, unsplit_DC) 
+# 0.9282972
 
 
