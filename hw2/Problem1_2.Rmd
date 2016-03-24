@@ -1,0 +1,79 @@
+
+## Problem 1
+
+### Problem 1.a
+
+P(clinton) = 4/7
+P(sanders) = 3/7
+
+P(state | clinton) = 1/4
+
+P(voter | clinton) = 3/4
+
+P(women | clinton) = 3/4
+
+P(help | clinton) = 3/4
+
+P(benghazi | clinton) = 0
+
+P(state | sanders) = 1/3
+
+P(voter | sanders) = 1/3
+
+P(women | sanders) = 1/3
+
+P(help | sanders) = 1/3
+
+P(benghazi | sanders) = 1/3
+
+P(clinton | "state voter women help benghazi") = 1/4 3/4 3/4 3/4 0 4/7 = 0
+
+P(sanders | "state voter women help benghazi") = 1/3 1/3 1/3 1/3 1/3 3/7 = 1/1701
+
+According to unsmoothed Naive Bayes, Bernie Sanders was more likely to have sent the email.
+Since Clinton never used the word "Benghazi" in one of her emails, her posterior probability was zero.
+If that word hadn't been considered, the algorithm would have determined that she was more likely to have sent the email.
+The comparative rarity of each individual word makes it very likely that the posterior probability will be zero.
+
+### 1.b
+
+P(clinton) = 5/8
+P(sanders) = 1/2
+
+P(state | clinton) = 2/5
+
+P(voter | clinton) = 4/5
+
+P(women | clinton) = 4/5
+
+P(help | clinton) = 4/5
+
+P(benghazi | clinton) = 1/5
+
+P(state | sanders) = 1/2
+
+P(voter | sanders) = 1/2
+
+P(women | sanders) = 1/2
+
+P(help | sanders) = 1/2
+
+P(benghazi | sanders) = 1/2
+
+P(clinton | "state voter women help benghazi") = 2/5 4/5 4/5 4/5 1/5 5/8 = 640/25000 = .0256
+
+P(sanders | "state voter women help benghazi") = 1/2 1/2 1/2 1/2 1/2 1/2 = 1/64 = 0.015625
+
+After Laplace smoothing is added, the algorithm indicates that Clinton is more likely to have written the email.
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
