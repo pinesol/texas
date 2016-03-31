@@ -103,6 +103,7 @@ rank_diff_score(df.reviews$score, reviews_dict_score) # rank diff score 33,409,1
 # 2c Naive Bayes
 
 # TODO doesn't work! I think quanteda sucks.
+# TODO only use 250 reviews
 reviews_dfm <- dfm(df.reviews$text, toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
                    ignoredFeatures = stopwords("english"))
 num_training_docs <- floor(0.8*ndoc(reviews_dfm))
@@ -118,6 +119,8 @@ nb.p4k.predictions <- predict(nb.p4k, newdata=test_reviews_dfm)
 #  invalid subscript type 'list'
 
 # 2d Word scores by hand
+# TODO use the match function? 
+# TODO only score the non-anchor documents
 reviews_dfm <- dfm(df.reviews$text, toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
                    ignoredFeatures = stopwords("english"))
 
@@ -180,6 +183,7 @@ rank_diff_score(df.reviews$score, as.vector(all_word_scores))  # rank diff score
 # rank diff smaller, and thus better for word scores than it is for the dictionary method.
 
 # 2e SVM
+# TODO only use 1000
 library(RTextTools)
 
 reviews_dtm <- create_matrix(df.reviews$text, language="english",
@@ -204,21 +208,33 @@ cv.svm.2.folds <- cross_validate(container, nfold=2, algorithm = 'SVM', kernel =
 
 # Problem 3 - Human Intelligence Tasks (HITs)
 df.hit <- read.csv("~/Text_as_Data/HW2/CF_rate_trustworthiness.csv", stringsAsFactors = FALSE)
-df.hit <- df.hit[c('rating', 'image_name', 'X_country')]
-df.hit$demographic <- gsub("\n", "", df.hit$image_name)
-df.hit$demographic <- gsub("[0-9]+", "", df.hit$image_name)
 
-chisq.test(df.hit$X_country, df.hit$rating)
+df.country <- df.hit[c('rating', 'X_country')]
 
-#data:  df.hit$X_country and df.hit$rating
-#X-squared = 445.41, df = 306, p-value = 3.19e-07
+country_anova <- aov(rating ~ X_country, data=df.country)
+summary(country_anova)
+
+#              Df Sum Sq Mean Sq F value   Pr(>F)    
+# X_country    34  359.6  10.576   2.927 2.04e-06 ***
+#  Residuals   185  668.4   3.613                     
+---
+#  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
 
 # statistically significant
+# TODO 1 way anova
 
-chisq.test(df.hit$demographic , df.hit$rating)
+df.demo <- df.hit[c('rating', 'image_name')]
+df.demo$demographic <- gsub("\n", "", df.demo$image_name)
+df.demo$demographic <- gsub("[0-9]+", "", df.demo$image_name)
 
-#data:  df.hit$demographic and df.hit$rating
-#X-squared = 22.708, df = 18, p-value = 0.202
-
-# not statistically significant
+demo_anova <- aov(rating ~ image_name, data=df.demo)
+summary(demo_anova)
+  
+#Df Sum Sq Mean Sq F value  Pr(>F)   
+#image_name   43  310.4   7.218    1.77 0.00541 **
+#  Residuals   176  717.6   4.077                   
+#---
+#  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1  
+  
 
