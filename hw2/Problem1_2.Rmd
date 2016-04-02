@@ -1,9 +1,16 @@
+# Text-as-data Homework 2
+### Alex Pine (akp258), March 31 2016
+
+TODO! The code can't be evaluated since state isn't shared from block to block.
+You have to write out all of the stats.
 
 ## Problem 1
 
 ### Problem 1.a
+Here are my probability calculations:
 
 P(clinton) = 4/7
+
 P(sanders) = 3/7
 
 P(state | clinton) = 1/4
@@ -38,6 +45,7 @@ The comparative rarity of each individual word makes it very likely that the pos
 ### 1.b
 
 P(clinton) = 5/8
+
 P(sanders) = 1/2
 
 P(state | clinton) = 2/5
@@ -66,14 +74,300 @@ P(sanders | "state voter women help benghazi") = 1/2 1/2 1/2 1/2 1/2 1/2 = 1/64 
 
 After Laplace smoothing is added, the algorithm indicates that Clinton is more likely to have written the email.
 
+## Problem 2: Music review classification
+
+### Problem 2a: Data pre-processing
+
 ```{r}
-summary(cars)
+# find the median score
+median_score <- median(df.reviews[['score']]) # 7.2
+print(paste('Median review score:', median_score))
+# make a new column for 'positive' vs 'negative'
+assigned_labels <- ifelse(df.reviews$score >= median_score, 'positive', 'negative')
+# find the scores below 10th percentile
+anchor_negative_cutoff <- quantile(df.reviews$score, c(0.1))[[1]] # 5.4
+# find the score above the 90th percentile
+anchor_positive_cutoff <- quantile(df.reviews$score, c(0.9))[[1]] # 8.2
+# make a new column "anchor", labeled some "anchor positive" or "anchor negative"
+anchor_fn <- function(score) {
+  if (score < anchor_negative_cutoff) {
+    return("anchor negative")
+  } else if (score > anchor_positive_cutoff) {
+    return("anchor positive")
+  } else {
+    return("")
+  }
+}
+anchor_labels <- sapply(df.reviews$score, anchor_fn)
 ```
 
-You can also embed plots, for example:
 
-```{r, echo=FALSE}
-plot(cars)
+### Problem 2b: Dictionary-based classification
+
+Before classifying the reviews using the dictionary-based technique, I lowercased all words, because the dictionary's words are all lowercase.
+I also removed numbers and punctuation, because those are not in the dictionary, either. I didn't remove stop-words, though, because I was
+not sure if they were in the dictionary.
+
+```{r}
+# load in the positive dictionary file. remove header. split by line, create a quanteda dictionary
+f <- file("~/Text_as_Data/HW2/positive-words.txt", open="r")
+positive_words <- readLines(f)
+close(f)
+positive_words <- positive_words[-1:-2] # cut off blank lines
+# load in the negative dictionary file. remove header. split by line into a list, create a quanteda dictionary
+f <- file("~/Text_as_Data/HW2/negative-words.txt", open="r")
+negative_words <- readLines(f)
+close(f)
+negative_words <- negative_words[-1:-2] # cut off header
+# create dictionary
+review_dict <- dictionary(list(positive = positive_words, negative = negative_words))
+
+# Create a dfm of all reviews narrowed down to the dictionary words
+reviews_dfm <- as.data.frame(dfm(df.reviews$text,
+                             toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
+                             dictionary = review_dict))
+# Compute predicted scores
+reviews_diff <- reviews_dfm$positive - reviews_dfm$negative
+reviews_total_words = reviews_dfm$positive + reviews_dfm$negative 
+reviews_dict_score <- reviews_diff / reviews_total_words
+# NOTE some reviews have no dict words. Give them a score of zero.
+reviews_dict_score[is.na(reviews_dict_score)] <- 0.0
+reviews_dict_labels <- ifelse(reviews_dict_score >= 0, 'positive', 'negative')
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#### What is the median value of the sentiment of the reviews? What percentage of reviews have a “positive” sentiment score?
+
+```{r}
+median_reviews_dict_score <- median(reviews_dict_score, na.rm = TRUE)
+print(paste("The median sentiment score is", median_reviews_dict_score))
+perc_reviews_dict_positive <- sum(reviews_dict_labels == 'positive', na.rm = TRUE)/length(reviews_dict_labels)
+print(paste("The percentange of positive reviews is", perc_reviews_dict_positive))
+```
+
+#### Compute the accuracy, precision and recall of the sentiment scores relative to the reviews labeled by their actual score.
+
+```{r}
+compute_accuracy_stats <- function(real_labels, predicted_labels) {
+  tp <- tn <- fp <- fn <- 0
+  for (i in 1:length(real_labels)) {
+    if (predicted_labels[[i]] == real_labels[[i]]) {
+      if (predicted_labels[[i]] == 'positive') {
+        tp <- tp + 1
+      } else {
+        tn <- tn + 1
+      }
+    } else {
+      if (predicted_labels[[i]] == 'positive') {
+        fp <- fp + 1
+      } else {
+        fn <- fn + 1
+      }      
+    }
+  }
+  print(paste('true positives', tp))
+  print(paste('true negatives', tn))
+  print(paste('false positives', fp))
+  print(paste('false negatives', fn))
+  print(paste('precision', tp / (tp+fp)))
+  print(paste('recall', tp / (tp+fn)))
+  print(paste('accuracy', (tp+tn) / (tp+tn+fp+fn)))
+}
+
+compute_accuracy_stats(assigned_labels, reviews_dict_labels)
+```
+
+
+#### Compute the absolute value of the sum of all of the differences in rank for each review.
+
+```{r}
+rank_diff_score <- function(real_scores, predicted_scores) {
+  sorted_real_scores_ix <- sort(real_scores, decreasing=TRUE, index.return=TRUE)$ix
+  sorted_predicted_scores_ix <- sort(predicted_scores, decreasing=TRUE, index.return=TRUE)$ix
+  rank_diff_sum <- sum(abs(sorted_real_scores_ix - sorted_predicted_scores_ix))
+  print(paste('rank diff score', rank_diff_sum))
+}
+
+dict_rank_diff <- rank_diff_score(df.reviews$score, reviews_dict_score)
+print(paste("The rank difference score for dictionary classiciation is:", dict_rank_diff))
+```
+
+
+### Problem 2c: Naive Bayes classification
+
+Before classifying the reviews using the Naive Bayes technique, I lowercased all words and removed numbers and punctuation, like before,
+since those words aren't informative for classifying a review. I also removed English stop-words for the same reason. 
+
+```{r}
+reviews_dfm <- dfm(df.reviews$text[1:250], toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
+                   ignoredFeatures = stopwords("english"))
+num_training_docs <- floor(0.2*ndoc(reviews_dfm))
+training_reviews_dfm <- reviews_dfm[1:num_training_docs]
+training_reviews_labels <- factor(assigned_labels[1:num_training_docs], ordered=TRUE)
+test_reviews_dfm <- reviews_dfm[(num_training_docs+1):ndoc(reviews_dfm)]
+# train the model
+nb.p4k <- textmodel_NB(x=training_reviews_dfm, y=training_reviews_labels, smooth=1, prior='uniform') 
+nb.p4k.predictions <- predict(nb.p4k, newdata=test_reviews_dfm)
+```
+
+#### What are the accuracy, precision and recall of your predictions?
+```{r}
+test_reviews_labels <- assigned_labels[(num_training_docs+1):ndoc(reviews_dfm)]
+compute_accuracy_stats(test_reviews_labels, nb.p4k.predictions$docs$ws.predicted)
+```
+
+#### Are there any other priors your could use to improve the quality of your predictions?
+
+Reviews 51 to 250 were nearly evenly split between positive and negative reviews, so the uniform prior seems like the best prior possible.
+Any other prior would be biased towards one side or the other, which doesn't seem to be reflected in the data.
+
+#### If you try to fit the model without smoothing, it’s unable to make predictions about some of the reviews out-of-sample? Why might this be?
+
+Without smoothing, it is likely that some out-of-sample reviews won't share any of the words used to train the model. This leads to a zero-denominator when there is no smoothing, making predictions impossible. This is more likely to happen with music reviews than political
+manifestos, since music includes wide variety of styles and groups which change quickly over time. Political subject matter is comparatively
+consistant: economics, war, and social issues.
+
+### Wordscores model
+
+I used all the same text pre-processing for the wordscores technique that I did for the Naive Bayes technique.
+
+#### Create a vector of "wordscores" for the words that appear in the "anchor" reviews. What are the most extreme words?
+
+```{r}
+reviews_dfm <- dfm(df.reviews$text, toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
+                   ignoredFeatures = stopwords("english"))
+
+calculate_wordscores <- function(anchor_labels, reviews_dfm) {
+  positive_dfm <- reviews_dfm[anchor_labels == 'anchor positive']
+  negative_dfm <- reviews_dfm[anchor_labels == 'anchor negative']
+  # treat the anchor reviews as two big reviews
+  positive_counts <- colSums(positive_dfm)
+  negative_counts <- colSums(negative_dfm)
+  # normalize counts
+  positive_scores <- positive_counts / sum(positive_counts)
+  negative_scores <- negative_counts / sum(negative_counts)  
+  # final score calculation
+  scores <- (positive_scores - negative_scores) / (positive_scores + negative_scores)
+  # Words that are not in the anchor docs get a score of zero.
+  scores[is.na(scores)] <- 0
+  print("Most positive review words:")
+  print(sort(scores, decreasing=TRUE)[1:10])
+  print("Most negative review words:")
+  print(sort(scores)[1:10])
+  return(scores)
+}
+word_scores <- calculate_wordscores(anchor_labels, reviews_dfm)
+```
+
+#### Rank: dictionaries or wordscores
+
+The ranking-difference score is smaller for the wordscores method than it is for the dictionary method, implying the wordscores method works better.
+
+```{r}
+calc_avg_wordscores <- function(reviews_dfm, word_scores) {
+  words_per_doc <- rowSums(reviews_dfm)
+  # filter out words with a word score of zero, for speed.
+  filtered_word_scores <- word_scores[word_scores != 0]
+  filtered_reviews_dfm <- selectFeatures(reviews_dfm, names(filtered_word_scores))
+  scores <- (filtered_reviews_dfm / words_per_doc) %*% filtered_word_scores
+  scores[is.na(scores)] <- 0
+  return(scores)
+}
+all_word_scores <- calc_avg_wordscores(reviews_dfm, word_scores)
+word_score_labels <- ifelse(all_word_scores >= 0, 'positive', 'negative')
+
+compute_accuracy_stats(assigned_labels, word_score_labels)
+rank_diff_score(df.reviews$score, as.vector(all_word_scores))
+```
+
+### 2e: SVM
+
+When pre-processing the text for SVM, I removed stop-words, punctuation, and lowercased all the words, just like I did for Naive Bayes and wordscores.
+
+#### Why are SVM or Naive better choices than the dictionary approach or wordscores in classifying positive and negative reviews?
+
+The dictionary and wordscores methods are generally not as effective as machine-learning approaches like Naive Bayes or SVM because
+they pre-decide both which words are important for discriminating the two classes, instead of learning that from the data. 
+The dictionary approach does this by choosing all the relevant words completely indepentently of all data. The wordscores approach does 
+this by deciding the "extreme" documents are the most useful for discrimination. Naive Bayes and SVM make no such assumptions.
+
+In addition, the dictionary approach decides how much impact the dictionary words will have on the score, independent of how they're
+actually used in the text. The wordscores method partially fixes this problem by reweighting the scores based on the term frequencies
+of the documents being evaluated, but it does not do anything like what SVM does to find the most discriminating words.
+
+#### Cross validate an SVM. Report which training/test size balance gives you the highest average accuracy.
+
+The linear kernel achieved its highest accuracy with a training set of 90%. The Radial kernel achieved its highest accuracy at 70%.
+
+```{r}
+library(RTextTools)
+
+reviews_dtm <- create_matrix(df.reviews$text[1:1000], language="english",
+                             removeStopwords=TRUE, 
+                             stemWords=FALSE, 
+                             stripWhitespace=TRUE, 
+                             toLower=TRUE)
+# try training vs test from 10 to 90, report the best one.
+evaluate_svm <- function(reviews_dtm, kernel) {
+  best_accuracy <- 0
+  best_training_size <- 0
+  for (training_size in seq(.1, .9, .1)) {
+    print(paste('Testing training size:', training_size))
+    training_break = floor(training_size*nrow(reviews_dtm))
+    container <- create_container(reviews_dtm, assigned_labels, 
+                                  trainSize=1:training_break, 
+                                  testSize=(training_break+1):nrow(reviews_dtm),
+                                  virgin=FALSE)    
+    cv.svm <- cross_validate(container, nfold=5, algorithm='SVM', kernel=kernel)
+    print(paste('Accuracy:', cv.svm$meanAccuracy))
+    if (cv.svm$meanAccuracy > best_accuracy) {
+      best_accuracy <- cv.svm$meanAccuracy
+      best_training_size <- training_size
+    }
+  }
+  print(paste('The highest accuracy was', best_accuracy, ', when the training size was', best_training_size))
+}
+evaluate_svm(reviews_dtm, 'linear') 
+#[1] "Accuracy: 0.670487694322781"
+#[1] "The highest accuracy was  0.670487694322781 , when the training size was 0.9"
+
+evaluate_svm(reviews_dtm, 'radial') 
+# "The highest accuracy was  0.681702171991192 , when the training size was 0.7"
+```
+
+#### Which kernel gives a higher accuracy?
+
+I wouldn't expect the Radial basis to perform better than the Linear basis, because the Radial basis baises the solution to smooth functions, and there is no reason to expect that the solution should be smooth. In this example, the Radial basis had slighly higher accuracy than the Linear basis, but only by 1%, which may just be due to noise.
+
+## Problem 3: Crowd-sourcing
+
+### Is there any nationality that is likely to give statistically significant higher than average ratings?
+
+The results of a one-way ANOVA suggests that there is likely at least one nationality that has a higher average rating than the other nationalities.
+
+```{r}
+df.hit <- read.csv("~/Text_as_Data/HW2/CF_rate_trustworthiness.csv", stringsAsFactors = FALSE)
+
+df.country <- df.hit[c('rating', 'X_country')]
+
+country_anova <- aov(rating ~ X_country, data=df.country)
+summary(country_anova)
+```
+
+
+### Of the three demographic groups in the picture, is there a statistically significant difference between the average ratings given to them?
+
+Performing the one-way ANOVA on demographics this time, we see again that there is likely at least one demographic that has a higher average rating than the other ones.
+
+```{r}
+df.demo <- df.hit[c('rating', 'image_name')]
+df.demo$demographic <- gsub("\n", "", df.demo$image_name)
+df.demo$demographic <- gsub("[0-9]+", "", df.demo$image_name)
+
+demo_anova <- aov(rating ~ image_name, data=df.demo)
+summary(demo_anova)
+```
+
+### This task was conducted without “gold standard” questions–can you think of any appropriate questions that might be used to filter out low-quality workers?
+
+You could ask workers if they believed if certain races, genders, or nationalities were inherently more trustworthy than others. Equivalently, you could ask them if they support Donald Trump for president.
+

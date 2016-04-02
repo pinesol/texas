@@ -6,6 +6,7 @@ df.reviews <- read.csv("~/Text_as_Data/HW2/p4k_reviews.csv", stringsAsFactors = 
 # a
 # find the median score
 median_score <- median(df.reviews[['score']]) # 7.2
+print(paste('Median review score:', median_score))
 # make a new column for 'positive' vs 'negative'
 assigned_labels <- ifelse(df.reviews$score >= median_score, 'positive', 'negative')
 # find the scores below 10th percentile
@@ -25,17 +26,16 @@ anchor_fn <- function(score) {
 anchor_labels <- sapply(df.reviews$score, anchor_fn)
 
 # b
-# NOTE: he changed the dictionary after you did this. so your results may differ.
 # load in the positive dictionary file. remove header. split by line, create a quanteda dictionary
 f <- file("~/Text_as_Data/HW2/positive-words.txt", open="r")
 positive_words <- readLines(f)
 close(f)
-positive_words <- positive_words[-1:-35] # cut off header
+positive_words <- positive_words[-1:-2] # cut off blank lines
 # load in the negative dictionary file. remove header. split by line into a list, create a quanteda dictionary
 f <- file("~/Text_as_Data/HW2/negative-words.txt", open="r")
 negative_words <- readLines(f)
 close(f)
-negative_words <- negative_words[-1:-35] # cut off header
+negative_words <- negative_words[-1:-2] # cut off header
 # create dictionary
 review_dict <- dictionary(list(positive = positive_words, negative = negative_words))
 
@@ -51,8 +51,10 @@ reviews_dict_score <- reviews_diff / reviews_total_words
 reviews_dict_score[is.na(reviews_dict_score)] <- 0.0
 reviews_dict_labels <- ifelse(reviews_dict_score >= 0, 'positive', 'negative')
 
-median_reviews_dict_score <- median(reviews_dict_score, na.rm = TRUE) # 0.3428571
-perc_reviews_dict_positive <- sum(reviews_dict_labels == 'positive', na.rm = TRUE)/length(reviews_dict_labels) # 0.9622
+median_reviews_dict_score <- median(reviews_dict_score, na.rm = TRUE) # 0.342857142857143
+print(paste("The median sentiment score is", median_reviews_dict_score))
+perc_reviews_dict_positive <- sum(reviews_dict_labels == 'positive', na.rm = TRUE)/length(reviews_dict_labels) # 0.9632
+print(paste("The percentange of positive reviews is", perc_reviews_dict_positive))
 
 # accuracy precision recall
 compute_accuracy_stats <- function(real_labels, predicted_labels) {
@@ -76,19 +78,19 @@ compute_accuracy_stats <- function(real_labels, predicted_labels) {
   print(paste('true negatives', tn))
   print(paste('false positives', fp))
   print(paste('false negatives', fn))
-  print(paste('true positive rate', tp / (tp+fp)))
-  print(paste('false positive rate', fp / (tp+fp)))
+  print(paste('precision', tp / (tp+fp)))
+  print(paste('recall', tp / (tp+fn)))
   print(paste('accuracy', (tp+tn) / (tp+tn+fp+fn)))
 }
 
 compute_accuracy_stats(assigned_labels, reviews_dict_labels)
-# "true positives 4801"
-# "true negatives 165"
-# "false positives 4830"
-# "false negatives 204"
-# "true positive rate 0.498494445021285"
-# "false positive rate 0.501505554978715"
-# "accuracy 0.4966"
+#[1] "true positives 4801"
+#[1] "true negatives 164"
+#[1] "false positives 4831"
+#[1] "false negatives 204"
+#[1] "precision 0.4984426910299"
+#[1] "recall 0.959240759240759"
+#[1] "accuracy 0.4965"
 
 # Compute ranking difference score. Smaller is better.
 rank_diff_score <- function(real_scores, predicted_scores) {
@@ -102,25 +104,28 @@ rank_diff_score(df.reviews$score, reviews_dict_score) # rank diff score 33,409,1
 
 # 2c Naive Bayes
 
-# TODO doesn't work! I think quanteda sucks.
-# TODO only use 250 reviews
-reviews_dfm <- dfm(df.reviews$text, toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
+reviews_dfm <- dfm(df.reviews$text[1:250], toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
                    ignoredFeatures = stopwords("english"))
-num_training_docs <- floor(0.8*ndoc(reviews_dfm))
-training_reviews_dfm <- reviews_dfm[1:num_training_docs] #TODO check 0.8 via email
+num_training_docs <- floor(0.2*ndoc(reviews_dfm))
+training_reviews_dfm <- reviews_dfm[1:num_training_docs]
 training_reviews_labels <- factor(assigned_labels[1:num_training_docs], ordered=TRUE)
 test_reviews_dfm <- reviews_dfm[(num_training_docs+1):ndoc(reviews_dfm)]
-test_reviews_labels <- factor(assigned_labels[(num_training_docs+1):ndoc(reviews_dfm)], ordered=TRUE)
-# TODO try it without smoothing too.
-nb.p4k <- textmodel_NB(x=training_reviews_dfm, y=training_reviews_labels, smooth=1.0, prior='uniform') 
+# train the model
+nb.p4k <- textmodel_NB(x=training_reviews_dfm, y=training_reviews_labels, smooth=1, prior='uniform') 
 nb.p4k.predictions <- predict(nb.p4k, newdata=test_reviews_dfm)
-# aha 263 is empty!
-#Error in colnames(PcGw)[apply(PcGw, 1, which.max)] : 
-#  invalid subscript type 'list'
+# evaluate it on the test set
+test_reviews_labels <- assigned_labels[(num_training_docs+1):ndoc(reviews_dfm)]
+compute_accuracy_stats(test_reviews_labels, nb.p4k.predictions$docs$ws.predicted)
+#[1] "true positives 98"
+#[1] "true negatives 1"
+#[1] "false positives 100"
+#[1] "false negatives 1"
+#[1] "precision 0.494949494949495"
+#[1] "recall 0.98989898989899"
+#[1] "accuracy 0.495"
+
 
 # 2d Word scores by hand
-# TODO use the match function? 
-# TODO only score the non-anchor documents
 reviews_dfm <- dfm(df.reviews$text, toLower=TRUE, removeNumbers=TRUE, removePunct=TRUE, 
                    ignoredFeatures = stopwords("english"))
 
@@ -152,17 +157,14 @@ word_scores <- calculate_wordscores(anchor_labels, reviews_dfm)
 #corralled       dawson stadium-size    souleyman   motionless        dabke out-of-place       khaled   professing     imitates 
 #-1           -1           -1           -1           -1           -1           -1           -1           -1           -1 
 
-# TODO write a function that takes in an unscored doc and the scores list, and uses it to score the doc.
+# write a function that takes in an unscored doc and the scores list, and uses it to score the doc.
 calc_avg_wordscores <- function(reviews_dfm, word_scores) {
   words_per_doc <- rowSums(reviews_dfm)
   # filter out words with a word score of zero, for speed.
   filtered_word_scores <- word_scores[word_scores != 0]
   filtered_reviews_dfm <- selectFeatures(reviews_dfm, names(filtered_word_scores))
   scores <- (filtered_reviews_dfm / words_per_doc) %*% filtered_word_scores
-  all_word_scores[is.na(all_word_scores)] <- 0
-  # Too slow
-  #words_per_doc <- rowSums(reviews_dfm)  
-  #scores <- (reviews_dfm / words_per_doc) %*% word_scores
+  scores[is.na(scores)] <- 0
   return(scores)
 }
 all_word_scores <- calc_avg_wordscores(reviews_dfm, word_scores)
@@ -181,30 +183,47 @@ compute_accuracy_stats(assigned_labels, word_score_labels)
 rank_diff_score(df.reviews$score, as.vector(all_word_scores))  # rank diff score 33,042,402
 
 # rank diff smaller, and thus better for word scores than it is for the dictionary method.
+# NOTE: I considered scoring only the non-anchor documents, but I decided not to because it
+# would make the rank scores uncomparable.
 
 # 2e SVM
-# TODO only use 1000
+# only use first 1000 documents.
 library(RTextTools)
 
-reviews_dtm <- create_matrix(df.reviews$text, language="english",
+reviews_dtm <- create_matrix(df.reviews$text[1:1000], language="english",
                              removeStopwords=TRUE, 
                              stemWords=FALSE, 
                              stripWhitespace=TRUE, 
                              toLower=TRUE)
-training_break = floor(0.9*nrow(reviews_dtm))
-container <- create_container(reviews_dtm, assigned_labels, 
-                              trainSize=1:training_break, 
-                              testSize=(training_break+1):nrow(reviews_dtm),
-                              virgin=FALSE)
-# TODO 5 folds is waaaay too slow to run. 
-#cv.svm <- cross_validate(container, nfold=5, algorithm = 'SVM', kernel = 'linear')
-
-cv.svm.2.folds <- cross_validate(container, nfold=2, algorithm = 'SVM', kernel = 'linear')
-
-# Figure out how to use cross_validate correctly
 # try training vs test from 10 to 90, report the best one.
+evaluate_svm <- function(reviews_dtm, kernel) {
+  best_accuracy <- 0
+  best_training_size <- 0
+  for (training_size in seq(.1, .9, .1)) {
+    print(paste('Testing training size:', training_size))
+    training_break = floor(training_size*nrow(reviews_dtm))
+    container <- create_container(reviews_dtm, assigned_labels, 
+                                  trainSize=1:training_break, 
+                                  testSize=(training_break+1):nrow(reviews_dtm),
+                                  virgin=FALSE)    
+    cv.svm <- cross_validate(container, nfold=5, algorithm='SVM', kernel=kernel)
+    print(paste('Accuracy:', cv.svm$meanAccuracy))
+    if (cv.svm$meanAccuracy > best_accuracy) {
+      best_accuracy <- cv.svm$meanAccuracy
+      best_training_size <- training_size
+    }
+  }
+  print(paste('The highest accuracy was', best_accuracy, ', when the training size was', best_training_size))
+}
+evaluate_svm(reviews_dtm, 'linear') 
+#[1] "Accuracy: 0.670487694322781"
+#[1] "The highest accuracy was  0.670487694322781 , when the training size was 0.9"
 
-# TODO are radial or linear kernels better?
+evaluate_svm(reviews_dtm, 'radial') 
+# "The highest accuracy was  0.681702171991192 , when the training size was 0.7"
+
+# It appears the radial basis is a little better.
+
 
 # Problem 3 - Human Intelligence Tasks (HITs)
 df.hit <- read.csv("~/Text_as_Data/HW2/CF_rate_trustworthiness.csv", stringsAsFactors = FALSE)
@@ -222,7 +241,7 @@ summary(country_anova)
 
 
 # statistically significant
-# TODO 1 way anova
+# 1 way anova
 
 df.demo <- df.hit[c('rating', 'image_name')]
 df.demo$demographic <- gsub("\n", "", df.demo$image_name)
