@@ -3,16 +3,16 @@
 #install.packages("stm")
 #install.packages("LDAvis")
 
+# TODO save worksave so you can load it in the markdown file
+
 require(quanteda, warn.conflicts = FALSE, quietly = TRUE)
 library(topicmodels)
 
 data(immigNewsCorpus, package = "quantedaData")
 
-summary(immigNewsCorpus, 5)
 # Get 4 most common newspapers
 topPapers <- sort(table(immigNewsCorpus[["paperName"]]), decreasing = TRUE)
 reducedCorpus <- subset(immigNewsCorpus, paperName %in% names(topPapers)[1:4])
-table(reducedCorpus[["paperName"]])
 
 # Creates custom_stopwords vector
 load('~/texas/hw3/custom_stopwords.RData')
@@ -57,45 +57,31 @@ which.max2 <- function(x) {
   max(which(x == sort(x, partial=(NUM_TOPICS-1))[NUM_TOPICS-1]))
 }
 
-all_dates <- as.Date(as.numeric(reducedCorpus$documents$day) - 1, origin = "2015-01-01")
-
 guardian_topic_dist <- news_lda@gamma[which(papers == 'guardian'),]
 top_guardian_topics <- apply(guardian_topic_dist, 1, which.max)
 second_top_guardian_topics <- apply(guardian_topic_dist, 1, which.max2)
-guardian_dates <- as.Date(as.numeric(reducedCorpus$documents$day[which(papers == 'guardian')]) - 1, 
-                          origin = "2015-01-01")
-guardian_topics <- data.frame(top_guardian_topics, second_top_guardian_topics, guardian_dates)
+# TODO use paper names instead of dates
+guardian_topics <- data.frame(first=top_guardian_topics, second=second_top_guardian_topics)
 
 mail_topic_dist <- news_lda@gamma[which(papers == 'mail'),]
 top_mail_topics <- apply(mail_topic_dist, 1, which.max)
 second_top_mail_topics <- apply(mail_topic_dist, 1, which.max2)
-mail_dates <- as.Date(as.numeric(reducedCorpus$documents$day[which(papers == 'mail')]) - 1, 
-                          origin = "2015-01-01")
-mail_topics <- data.frame(top_mail_topics, second_top_mail_topics, mail_dates)
+mail_topics <- data.frame(first=top_mail_topics, second=second_top_mail_topics)
+
+gmail_topics <- rbind(guardian_topics, mail_topics)
+gmail_topics$paper <- rep(c('guardian', "mail"), times=c(nrow(guardian_topics), nrow(mail_topics)))
 
 # plot
 
-# TODO WTF is max.1.162??? max222.163.324.???
+z <- ggplot(gmail_topics, aes(x=1:nrow(gmail_topics), y=first, pch="First", color=paper)) + 
+    geom_point()
+z + geom_point(aes(x=1:nrow(gmail_topics), y=second, pch="Second", color=paper)) +
+  theme_bw() + xlab(NULL)+ ylab("Topic Number") +
+  theme(axis.ticks = element_blank(), axis.text.x = element_blank()) + 
+  labs(pch="Topic Order", color='Paper') + ggtitle("Paper Topics")
 
-# ####plot
-# z<-ggplot(gov2, aes(x=index, y=max.1.162., pch="First")) 
-# 
-# z + geom_point(aes(x=index, y=max222.1.162., pch="Second") ) +theme_bw() + ylab("Topic Number")  + ggtitle("Government")  + 
-#   xlab(NULL) + theme(axis.ticks = element_blank(), axis.text.x = element_blank()) + geom_point() + 
-#   geom_vline(xintercept=57) +
-#   geom_vline(xintercept=143)  +
-#   geom_vline(xintercept=114, linetype=2) +
-#   scale_shape_manual(values=c(18, 1), name = "Topic Rank") 
-# 
-# z<-ggplot(opp2, aes(x=index, y=max.163.324., pch="First")) 
-# 
-# z + geom_point(aes(x=index, y=max222.163.324., pch="Second") ) + ylab("Topic Number")+theme_bw()   + ggtitle("Opposition")  +
-#   xlab(NULL) + theme(axis.ticks = element_blank(), axis.text.x = element_blank()) + geom_point() + 
-#   geom_vline(xintercept=57) +
-#   geom_vline(xintercept=143)  +
-#   geom_vline(xintercept=114, linetype=2) +  scale_shape_manual(values=c(18, 1), name = "Topic Rank") 
 
-# TODO Problem 1g
+# Problem 1g
 # Average contribution by a topic to a newspaper.
 
 # docs by topics matrix. each row is a histogram over the topics.
@@ -135,7 +121,15 @@ library(LDAvis)
 
 # TODO the example given in topicmodelExamples2.R uses the lda library, not the topic models library
 # could you give us an example of how to use the LDAvis library with the topicsmodels library?
+#news_lda
 
+jsonLDA <- createJSON(phi=exp(news_lda@beta), theta=news_lda@gamma, 
+                      doc.length=ntoken(news_dfm), vocab=news_lda@terms,
+                      term.frequency=colSums(news_dfm))
+#install.packages('servr')
+
+#serVis(jsonLDA, out.dir = "visCollLDA", open.browser = TRUE)
+serVis(jsonLDA, open.browser = TRUE)
 
 # Using this library is not obvious at all
 # example: http://cpsievert.github.io/LDAvis/reviews/reviews.html
@@ -233,7 +227,7 @@ table(mailGuardCorpus[["paperName"]])
 paper <- mailGuardCorpus$documents$paperName
 text <- mailGuardCorpus$documents$texts
 # TODO chose 2015 arbitrarily.
-date <- as.Date(as.numeric(mailGuardCorpus$documents$day) - 1, origin = "2015-01-01")
+date <- as.Date(as.numeric(mailGuardCorpus$documents$day) - 1, origin = "2014-01-01") # TODO numeric? 
 mailGuard.df <- data.frame(paper, text, date)
 
 processed_corpus <- textProcessor(mailGuard.df$text, metadata=mailGuard.df, 
@@ -244,18 +238,23 @@ processed_corpus <- textProcessor(mailGuard.df$text, metadata=mailGuard.df,
 # TODO TODO ERROR 
 # "Error in prepDocuments(processed$documents, processed_corpus$vocab, processed_corpus$meta,  : 
 # Your documents object has more unique features than your vocabulary file has entries."
-out_20 <- prepDocuments(processed$documents, processed_corpus$vocab, processed_corpus$meta, lower.thresh=20)
+out_20 <- prepDocuments(processed_corpus$documents, processed_corpus$vocab, processed_corpus$meta, lower.thresh=20)
 
 # TODO wtf is the "spline of the date variable"? This is a guess.
 
 # NOTE reduce max EM iterations to 5 from 30 to make it faster.
 
 fitSpec50 <- stm(out_20$documents, out_20$vocab, K=0, init.type="Spectral", 
-                 content=~paper, prevalence = ~paper + smooth.spline(date), 
+                 content=~paper, prevalence = ~paper + smooth.spline(date), # TODO maybe just use numeric vector instead of date
                  max.em.its=1, data=out_20$meta, seed=5926696)
 
 # top 5 topics?
+# TODO in the recitation code
+# TODO use labelTopics?
+# TODO estimateEffect method=difference
+# TODO use verbose_labels = F, label_type=custom, custom.albels = blah
 # visualization
+# TODO use estimateEffect method=continutuous
 
 # Problem 4
 sotu_dfm <- dfm(subset(inaugCorpus, Year>1900))
@@ -268,6 +267,9 @@ df_fit <- textmodel_wordfish(sotu_dfm, c(nixon_index, obama_index))
 
 #TODO what are these magic numbers???
 
+# @theta: scores of each doc
+# TODO get index of left and rightmost things in df_fit@theta, then get their names
+#
 
 #plot(year[1:23], df_fit@theta[1:23])
 
@@ -276,6 +278,10 @@ df_fit <- textmodel_wordfish(sotu_dfm, c(nixon_index, obama_index))
 
 #plot(as.factor(party), df_fit@theta)
 
+
+#df_fit@features: words
+#df_fit@beta: scores for words. how much it discriminates on left v right. negative is left.
+# psi: fixed effects: how frequent or "stop wordy" a word is.
 
 ##most important features--word fixed effects
 
@@ -288,7 +294,7 @@ df_fit <- textmodel_wordfish(sotu_dfm, c(nixon_index, obama_index))
 #sort(words, decreasing=T)[1:50]
 
 ##guitar plot
-
+# plotting distriminating effect (beta) vs fixed effect (psi)
 
 #weights<-df_fit@beta
 
