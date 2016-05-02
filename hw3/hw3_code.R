@@ -325,20 +325,24 @@ nixon_index <- which(sotu_dfm@Dimnames$docs == "1969-Nixon")
 obama_index <- which(sotu_dfm@Dimnames$docs == "2009-Obama")
 
 # are these indices correct?
-df_fit <- textmodel_wordfish(sotu_dfm, c(nixon_index, obama_index))
+df_fit <- textmodel_wordfish(sotu_dfm, c(obama_index, nixon_index))
 
-#TODO what are these magic numbers???
-
+# get index of left and rightmost things in df_fit@theta, then get their names
 # @theta: scores of each doc
-# TODO get index of left and rightmost things in df_fit@theta, then get their names
-#
 
-#plot(year[1:23], df_fit@theta[1:23])
+# Leftmost
+sotu_dfm@Dimnames$docs[which.min(df_fit@theta)]
+# "1993-Clinton"
 
-#points(year[24:46], df_fit@theta[24:46], pch=8)
-#?plot
+# Rightmost
+sotu_dfm@Dimnames$docs[which.max(df_fit@theta)]
+# "1909-Taft"
 
-#plot(as.factor(party), df_fit@theta)
+# fascism
+df_fit@beta[which(df_fit@features == 'fascism')]
+# -4.291355
+
+# Left????
 
 
 #df_fit@features: words
@@ -347,20 +351,15 @@ df_fit <- textmodel_wordfish(sotu_dfm, c(nixon_index, obama_index))
 
 ##most important features--word fixed effects
 
-
-#words<-df_fit@psi
-#names(words) <- df_fit@features
-
-#sort(words)[1:50]
-
-#sort(words, decreasing=T)[1:50]
-
 ##guitar plot
 # plotting distriminating effect (beta) vs fixed effect (psi)
+words<-df_fit@psi
+names(words) <- df_fit@features
+sort(words)[1:50]
+sort(words, decreasing=T)[1:50]
 
-#weights<-df_fit@beta
-
-#plot(weights, words)
+weights<-df_fit@beta
+plot(weights, words)
 
 
 
