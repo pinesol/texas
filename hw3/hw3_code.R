@@ -21,9 +21,6 @@ news_dfm <- dfm(reducedCorpus, ignoredFeatures = custom_stopwords)
 news_dfm <- trim(news_dfm, minCount=30, minDoc=20)
 
 NUM_TOPICS <- 30
-#iterations? seed?
-# TODO good values for list(seed = SEED, burnin = 3,thin = 30, iter = 30))?
-# TODO why thin?
 news_lda <- LDA(news_dfm, NUM_TOPICS, method='Gibbs', control=list(seed=2, burnin=100, thin=10, iter=1000))
 get_terms(news_lda, 10)
 
@@ -72,7 +69,6 @@ gmail_topics <- rbind(guardian_topics, mail_topics)
 gmail_topics$paper <- rep(c('guardian', "mail"), times=c(nrow(guardian_topics), nrow(mail_topics)))
 
 # plot
-
 z <- ggplot(gmail_topics, aes(x=1:nrow(gmail_topics), y=first, pch="First", color=paper)) + 
     geom_point()
 z + geom_point(aes(x=1:nrow(gmail_topics), y=second, pch="Second", color=paper)) +
@@ -131,8 +127,14 @@ jsonLDA <- createJSON(phi=exp(news_lda@beta), theta=news_lda@gamma,
 #serVis(jsonLDA, out.dir = "visCollLDA", open.browser = TRUE)
 serVis(jsonLDA, open.browser = TRUE)
 
+# TODO require(png)
+# TODO grid.raster(readPNG())
+
+
 # Using this library is not obvious at all
 # example: http://cpsievert.github.io/LDAvis/reviews/reviews.html
+
+# Problem 2
 
 # Problem 2 Topic Stability
 news_lda_2 <- LDA(news_dfm, NUM_TOPICS, method='Gibbs', control=list(seed=3, burnin=100, thin=10, iter=1000))
@@ -219,16 +221,19 @@ avg_terms_in_common(small_lda_1, small_lda_2, small_closest_topics)
 # 10 topics are less stable than 30
 
 # Problem 3
+library(stm)
+install.packages("Rtsne")
+install.packages("geometry")
 
 # subset the dfm to guardian and daily mail
 mailGuardCorpus <- subset(immigNewsCorpus, paperName %in% c('mail', 'guardian'))
-table(mailGuardCorpus[["paperName"]])
 
 paper <- mailGuardCorpus$documents$paperName
 text <- mailGuardCorpus$documents$texts
 # TODO chose 2015 arbitrarily.
-date <- as.Date(as.numeric(mailGuardCorpus$documents$day) - 1, origin = "2014-01-01") # TODO numeric? 
-mailGuard.df <- data.frame(paper, text, date)
+#date <- as.Date(as.numeric(mailGuardCorpus$documents$day) - 1, origin = "2014-01-01") # TODO numeric?
+days <- as.numeric(mailGuardCorpus$documents$day)
+mailGuard.df <- data.frame(paper, text, days)#TODO, date)
 
 processed_corpus <- textProcessor(mailGuard.df$text, metadata=mailGuard.df, 
                                   customstopwords=custom_stopwords)
@@ -238,17 +243,57 @@ processed_corpus <- textProcessor(mailGuard.df$text, metadata=mailGuard.df,
 # TODO TODO ERROR 
 # "Error in prepDocuments(processed$documents, processed_corpus$vocab, processed_corpus$meta,  : 
 # Your documents object has more unique features than your vocabulary file has entries."
-out_20 <- prepDocuments(processed_corpus$documents, processed_corpus$vocab, processed_corpus$meta, lower.thresh=20)
+out_25 <- prepDocuments(processed_corpus$documents, processed_corpus$vocab, processed_corpus$meta, lower.thresh=25)
 
-# TODO wtf is the "spline of the date variable"? This is a guess.
+# TODO wtf is the "spline of the date variable"? I'm ignoring it and just using the index.
 
-# NOTE reduce max EM iterations to 5 from 30 to make it faster.
+# NOTE reduce max EM iterations to 5 from 25 to make it faster.
 
-fitSpec50 <- stm(out_20$documents, out_20$vocab, K=0, init.type="Spectral", 
-                 content=~paper, prevalence = ~paper + smooth.spline(date), # TODO maybe just use numeric vector instead of date
-                 max.em.its=1, data=out_20$meta, seed=5926696)
+fitSpec25 <- stm(out_25$documents, out_25$vocab, K=0, init.type="Spectral", 
+                 content=~paper, prevalence = ~paper + days, #smooth.spline(date), # TODO maybe just use numeric vector instead of date
+                 max.em.its=30, data=out_25$meta, seed=5926696)
 
-# top 5 topics?
+# Top 5 topics
+labelTopics(fitSpec25, 1:5)
+
+
+# Topic Words:
+#  Topic 1: church, sex, christian, sexual, oppos, savil, spring 
+#  Topic 2: beauti, pop, cloth, cook, hate, knew, writer 
+#  Topic 3: birmingham, inspector, inquiri, gay, knew, friday, discuss 
+#  Topic 4: bnp, farag, ukip, confer, euro, extremist, nigel 
+#  Topic 5: bbcs, savil, leftw, broadcast, corpor, bbc, fee 
+
+#  Covariate Words:
+#  Group guardian: grdn, newspaperid, caption, page, overwhelm, form, address 
+#  Group mail: newspapermailid, damonl, daim, newspap, mail, onlin, spark 
+
+#  Topic-Covariate Interactions:
+#  Topic 1, Group guardian: anim, muslim, islam, religion, food, scare, recommend 
+#  Topic 1, Group mail: novemb, stress, briton, wintour, survey, betray, minimum 
+
+#  Topic 2, Group guardian: itali, sea, island, euro, rent, northern, coupl 
+#  Topic 2, Group mail: water, sea, murder, rape, road, wealthi, network 
+
+#  Topic 3, Group guardian: homosexu, asian, citizenship, teacher, guest, islam, facebook 
+#  Topic 3, Group mail: rowena, mason, brown, gordon, field, stanc, backbench 
+
+#  Topic 4, Group guardian: manifesto, surg, legitim, revolt, euroscept, poll, referendum 
+#  Topic 4, Group mail: ship, engin, human, eye, dream, smile, artist 
+
+#  Topic 5, Group guardian: terribl, corrupt, academ, ian, style, salari, bloodi 
+#  Topic 5, Group mail: offend, drug, releas, search, illeg, oper, approv
+
+# Names for the topics:
+# 
+# 1: Christian sex
+# 2: Lifestyle
+# 3: Birmingham investigation?
+# 4: Right-wing politics
+# 5: Public broadcasting
+topic_names <- c('Christian sex', 'Lifestyle', 'Birmingham investigation', 
+                 'Right-wing politics', 'Public broadcasting')
+
 # TODO in the recitation code
 # TODO use labelTopics?
 # TODO estimateEffect method=difference
@@ -256,7 +301,24 @@ fitSpec50 <- stm(out_20$documents, out_20$vocab, K=0, init.type="Spectral",
 # visualization
 # TODO use estimateEffect method=continutuous
 
-# Problem 4
+##change data types
+out_25$meta$paper<-as.factor(out_25$meta$paper)
+##pick specifcation
+prep<-estimateEffect(topic_names ~ paper , fitSpec25, meta=out_25$meta)
+##plot effects
+plot.estimateEffect(prep, covariate="paper", topics=1:5, model=out_25, method="difference", 
+                    cov.value1 = "guardian", cov.value2 = "mail",
+                    xlab = "More Guardian......More Mail", xlim=c(-.1, .1),
+                    labeltype='custom', verboseLabels=F, custom.labels=topic_names)
+
+##pick specifcation--over time
+prep <- estimateEffect(1:5 ~ s(days) , fitSpec25, meta=out_25$meta)
+##plot effects
+plot.estimateEffect(prep, covariate="days", topics=1:5, model=out_25, method="continuous",
+                    labeltype='custom', verboseLabels=F, custom.labels=topic_names)
+
+
+##### Problem 4
 sotu_dfm <- dfm(subset(inaugCorpus, Year>1900))
 
 nixon_index <- which(sotu_dfm@Dimnames$docs == "1969-Nixon")
