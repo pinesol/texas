@@ -46,16 +46,17 @@ out_stm <- prepDocuments(out$documents, out$vocab,
 # Warning: this takes a long time to run!
 possible_k <- seq(10, 50, by=8)
 model <- searchK(out_stm$documents, out_stm$vocab, K = possible_k,
-                 init.type = "Spectral")
+                 prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
+                 max.em.its=30, emtol=5e-5, data=out_stm$meta, init.type = "Spectral")
 plot(model) # best k seems to be 34 topics
 best_k <- possible_k[which.min(model$results$residual)]
 
 # Now let's fit the STM with 34 topics using candidate, subject matter, timestamp, and # retweets
 # Warning: this takes a REALLY long time to run!
 twitter_34 <- stm(out_stm$documents, out_stm$vocab, K = best_k, init.type="Spectral", 
-                 content = ~ subject_matter, 
+                 content = ~ subject_matter, # only one content covariate allowed
                  prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
-                 max.em.its=30, data=out_stm$meta, seed=1100)
+                 max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
 # Model Terminated Before Convergence Reached 
 
 # Save the current workspace to disk
@@ -95,6 +96,10 @@ colnames(debate_corpus$documents)
 debate_dfm <- dfm(texts(debate_corpus),
               ignoredFeatures = c("applause", "laughter", "booing", stopwords("english")))
 features(debate_dfm)
+# after removing stopwords, some snippets are blank. remove these from dfm and corpus
+drop.rows <- which(ntoken(debate_dfm) == 0)
+debate_dfm <- debate_dfm[-drop.rows,]
+debate_corpus$documents <- debate_corpus$documents[-drop.rows,]
 
 # convert dfm for use with STM package functions
 out_debate <- readCorpus(debate_dfm, type = "Matrix")
@@ -102,12 +107,15 @@ out_debate$vocab <- features(debate_dfm)
 # remove terms that occur in less than 5 tweets in entire corpus
 out_debate_stm <- prepDocuments(out_debate$documents, out_debate$vocab, 
                          meta = debate_corpus$documents,
-                         lower.thresh = 3) # Removing 1914 of 2443 terms
+                         lower.thresh = 2) # Removing 1720 of 2443 terms
+# using lower threshold of 2 leaves 5 empty documents
+drop.docs <- out_debate_stm$docs.removed
 
-# How many topics to use for Twitter data? Search over possible values of K
+# How many topics to use for debate data? Search over possible values of K
 # Warning: this takes a long time to run!
-possible_k_debate <- 3:10
+possible_k_debate <- 5:15
 model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
-                 init.type = "Spectral")
+                  prevalence = ~ speakers + is.candidate + s(rough.order),
+                  data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)
 plot(model_debate) 
-best_k_debate <- possible_k_debate[which.min(model_debate$results$residual)]
+best_k_debate <- 10
