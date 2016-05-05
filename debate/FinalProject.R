@@ -119,3 +119,21 @@ model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = poss
                   data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)
 plot(model_debate) 
 best_k_debate <- 10
+
+# Ideas for next steps:
+# TODO save the plots you make so we don't have to re-compute things to see them.
+# TODO Identify which topics make sense, and which ones are noise.
+# TODO Pick titles for the sensical topics, like we did in the homework
+# TODO if very few make sense, we should try fewer topics, or decide topic models don't work well here.
+# TODO Identify the top two topics for every debate snippet, along with their confidence scores. We'll 
+#      use this later for sure.
+# TODO Make the graphs that we made in the last homework, comparing topics for different candidates,
+#      and topic prevalence over time (if it's not too hard, not clear we'll use this)
+
+
+
+
+
+
+
+
