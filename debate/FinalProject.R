@@ -56,6 +56,7 @@ twitter_34 <- stm(out_stm$documents, out_stm$vocab, K = best_k, init.type="Spect
                  content = ~ subject_matter, 
                  prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
                  max.em.its=30, data=out_stm$meta, seed=1100)
+# Model Terminated Before Convergence Reached 
 
 # Save the current workspace to disk
 save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
@@ -67,6 +68,7 @@ debate.df$snippets <- as.character(debate.df$snippets)
 levels(debate.df$speakers)
 levels(twitter$candidate)
 
+# Map the debate speakers to names that correspond to Twitter candidate values
 debate.df$speakers <- revalue(debate.df$speakers, c("(UNKNOWN)"="OTHER", "BAIER"="MODERATOR", "BUSH"="Jeb Bush", 
             "CARSON"="Ben Carson", "MEGAN"="MODERATOR", "PAUL"="Rand Paul",
             "CHRISTIE"="Chris Christie", "COMMERCIAL"="OTHER", "CRUZ"="Ted Cruz", "FIORINA"="OTHER", 
@@ -74,3 +76,38 @@ debate.df$speakers <- revalue(debate.df$speakers, c("(UNKNOWN)"="OTHER", "BAIER"
             "PERRY"="OTHER", "QUESTION"="OTHER", "RUBIO"="Marco Rubio", "TRUMP"="Donald Trump",
             "UNIDENTIFIED FEMALE"="OTHER", "UNIDENTIFIED MALE"="OTHER", "WALKER"="Scott Walker",
             "WALKRE"="Scott Walker", "WALLACE"="MODERATOR", "WALLCE"="MODERATOR"))
+
+# 0 if speaker is MODERATOR or OTHER, 1 if speaker is one of the 10 candidates
+debate.df$is.candidate <- ifelse((debate.df$speakers == "MODERATOR" || 
+                                    debate.df$speakers == "OTHER"), 0, 1)
+# Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
+debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
+# Some text cleaning: Add spaces before and after periods, strip parentheses and add spaces
+debate.df$snippets <- gsub("\\.", " . ", debate.df$snippets)
+debate.df$snippets <- gsub("[()]", " ", debate.df$snippets)
+
+# Create quanteda corpus object for debate data with appropriate metadata
+text_col2 <- which(colnames(debate.df) == "snippets")
+debate_corpus <- corpus(debate.df$snippets, docvars = debate.df[,-text_col2])
+colnames(debate_corpus$documents)
+# DFM: remove APPLAUSE, LAUGHTER, BOOING, English stopwords, numbers, punctuation
+# convert all words to lowercase
+debate_dfm <- dfm(texts(debate_corpus),
+              ignoredFeatures = c("applause", "laughter", "booing", stopwords("english")))
+features(debate_dfm)
+
+# convert dfm for use with STM package functions
+out_debate <- readCorpus(debate_dfm, type = "Matrix")
+out_debate$vocab <- features(debate_dfm)
+# remove terms that occur in less than 5 tweets in entire corpus
+out_debate_stm <- prepDocuments(out_debate$documents, out_debate$vocab, 
+                         meta = debate_corpus$documents,
+                         lower.thresh = 3) # Removing 1914 of 2443 terms
+
+# How many topics to use for Twitter data? Search over possible values of K
+# Warning: this takes a long time to run!
+possible_k_debate <- 3:10
+model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
+                 init.type = "Spectral")
+plot(model_debate) 
+best_k_debate <- possible_k_debate[which.min(model_debate$results$residual)]
