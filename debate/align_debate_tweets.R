@@ -14,49 +14,29 @@ twitter.df <- parseTwitterData()
 # The main debate aired from 9pm to 10:30pm EDT
 # http://www.politico.com/story/2015/08/2016-presidential-debate-schedule-dates-times-moderators-and-topics-by-213684
 # That was 1am to 2:30am August 7th UTC.
-debate_start <- strptime('2015-08-07 01:00:00', "%Y-%m-%d %H:%M:%S", tz='UTC')
-debate_end <- strptime('2015-08-07 02:30:00', "%Y-%m-%d %H:%M:%S", tz='UTC')
+# 6 pm to 8 pm PDT, 9 pm to 11 pm EDT
+debate_start <- strptime('2015-08-06 19:00:00', "%Y-%m-%d %H:%M:%S", tz="America/Los_Angeles")
+debate_end <- strptime('2015-08-06 21:00:00', "%Y-%m-%d %H:%M:%S", tz="America/Los_Angeles")
 
 # Stackoverflow showed me how to reorder matrices. Makes no damn sense.
-twitter.df <- twitter.df[with(twitter.df, order(tweet_created)),]
+twitter.df <- twitter.df[order(twitter.df$tweet_created),]
 
-
-#tweets are in UTC (thank god)
-# There are a few really early ones, but most start at 18:55 UTC and go well into the next day! 
+#tweets are in Pacific time maybe?
+# There are a few really early ones, but most start at 18:55 and go well into the next day! 
 # Therefore, only a tiny fraction actually occured during the debate???
+sum(twitter.df$tweet_created >= debate_start)
+sum(twitter.df$tweet_created < debate_end)
 sum(twitter.df$tweet_created >= debate_start & twitter.df$tweet_created < debate_end)
-# Returns 66????? I don't believe it. that's waaaaay too few.
+# Returns 3680????? I don't believe it. that's waaaaay too few.
 
 # I think I need to look at the tweet data itself...I don't know if I can really trust the timestamps.
 
 # TODO maybe they're not really in UTC
 
-
-#twitter.df$tweet_created <- as.character(twitter.df$tweet_created)
-hours <- c('2015-08-06 17:00:00 UTC', 
-           '2015-08-06 18:00:00 UTC',
-           '2015-08-06 19:00:00 UTC',
-           '2015-08-06 20:00:00 UTC',
-           '2015-08-06 21:00:00 UTC',
-           '2015-08-06 22:00:00 UTC',
-           '2015-08-06 23:00:00 UTC',
-           '2015-08-07 00:00:00 UTC',
-           '2015-08-07 01:00:00 UTC',
-           '2015-08-07 02:00:00 UTC',
-           '2015-08-07 03:00:00 UTC',
-           '2015-08-07 04:00:00 UTC',
-           '2015-08-07 05:00:00 UTC',
-           '2015-08-07 06:00:00 UTC',
-           '2015-08-07 07:00:00 UTC',
-           '2015-08-07 08:00:00 UTC',
-           '2015-08-07 09:00:00 UTC',
-           '2015-08-07 10:00:00 UTC',
-           '2015-08-07 11:00:00 UTC')
-
-binned_dates <- cut(as.POSIXct(twitter.df$tweet_created), 
-                    breaks=as.POSIXct(strptime(hours, "%Y-%m-%d %H:%M:%S", tz='UTC')))
-
-plot(binned_dates)
+binned_dates <- cut(twitter.df$tweet_created, breaks = "hour")
+sum(is.na(binned_dates))
+levels(binned_dates) <- sapply(strsplit(levels(binned_dates), " "), "[", 2)
+qplot(binned_dates) + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
 
 # I don't understand the output of binned dates...all the starting ones are NAs...
 

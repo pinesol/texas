@@ -39,7 +39,7 @@ model <- searchK(out_stm$documents, out_stm$vocab, K = possible_k,
                  prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
                  max.em.its=30, emtol=5e-5, data=out_stm$meta, init.type = "Spectral")
 plot(model) # best k seems to be 34 topics
-best_k <- possible_k[which.min(model$results$residual)]
+best_k <- 34
 
 # Now let's fit the STM with 34 topics using candidate, subject matter, timestamp, and # retweets
 # Warning: this takes a REALLY long time to run!
@@ -57,7 +57,7 @@ load("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 debate.df <- parseDebateText()
 levels(debate.df$speaker)
 levels(twitter$candidate)
-
+debate.df$is.candidate <- ifelse(debate.df$speaker == "MODERATOR" | debate.df$speaker == "OTHER", 0, 1)
 # Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
 debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
 
