@@ -104,17 +104,29 @@ debate_8 <- stm(out_debate_stm$documents, out_debate_stm$vocab,
 topics_describe_debate <- t(labelTopics(debate_8, n=15)$topics)
 topics_describe_debate <- t(labelTopics(debate_10, n=15)$topics)
 
+topic_theta_by_speaker <- cbind(debate_10$theta, speaker = out_debate_stm$meta$speaker)
+
 topic_theta_by_speaker <- cbind(debate_8$theta, speaker = out_debate_stm$meta$speaker)
 topic_theta_by_speaker <- as.data.frame(topic_theta_by_speaker)
 # come up with descriptive names for topics
 colnames(topic_theta_by_speaker) <- c("t1", "t2", "t3", "t4", "t5", 
                                       "t6", "t7", "t8", "speaker")
+
+colnames(topic_theta_by_speaker) <- c(paste("t", 1:10, sep=""), "speaker")
+
+
 topic_theta_by_speaker$speaker <- factor(topic_theta_by_speaker$speaker, 
                                             labels = levels(debate.df$speaker))
 grouped <- group_by(topic_theta_by_speaker, speaker)
 topic_means_by_speaker <- as.data.frame(grouped %>% summarize_each(funs(mean)))
 topic_means_by_speaker # stacked relative histogram topic dist
-
+melted <- melt(topic_means_by_speaker, id.vars = "speaker")
+melted.candidate <- filter(melted, speaker != "OTHER" & speaker != "MODERATOR")
+p <- ggplot(melted.candidate, aes(x = speaker, y = value, fill = variable)) 
+p <- p + geom_bar(stat="identity") 
+p <- p + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
+p <- p + labs(fill = "Topic", x = "Candidate", y = "Mean Theta by Topic")
+p
 
 # Ideas for next steps:
 # TODO save the plots you make so we don't have to re-compute things to see them.
