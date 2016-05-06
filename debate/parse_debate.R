@@ -168,7 +168,7 @@ parseTwitterData <- function() {
   twitter$candidate <- mapvalues(twitter$candidate, from=c("", "No candidate mentioned"), to=c("OTHER", "OTHER"))
   twitter$subject_matter <- mapvalues(twitter$subject_matter, from=c(""), to=c("None of the above"))
   twitter <- unique(twitter)
-  twitter.df$text = iconv(twitter.df$text, "latin1", "ASCII", sub="") # Remove non ascii chars
+  twitter$text = iconv(twitter.df$text, "latin1", "ASCII", sub="") # Remove non ascii chars
   return(twitter)
 }
 
