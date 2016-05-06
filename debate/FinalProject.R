@@ -55,27 +55,11 @@ save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 load("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 
 debate.df <- parseDebateText()
-debate.df$text <- as.character(debate.df$text)
 levels(debate.df$speaker)
 levels(twitter$candidate)
 
-# Map the debate speakers to names that correspond to Twitter candidate values
-debate.df$speaker <- revalue(debate.df$speaker, c("(UNKNOWN)"="OTHER", "BAIER"="MODERATOR", "BUSH"="Jeb Bush", 
-            "CARSON"="Ben Carson", "MEGAN"="MODERATOR", "PAUL"="Rand Paul",
-            "CHRISTIE"="Chris Christie", "COMMERCIAL"="OTHER", "CRUZ"="Ted Cruz", "FIORINA"="OTHER", 
-            "HUCKABEE"="Mike Huckabee", "KASICH"="John Kasich", "KELLY"="MODERATOR", "MALE"="OTHER",
-            "PERRY"="OTHER", "QUESTION"="OTHER", "RUBIO"="Marco Rubio", "TRUMP"="Donald Trump",
-            "UNIDENTIFIED FEMALE"="OTHER", "UNIDENTIFIED MALE"="OTHER", "WALKER"="Scott Walker",
-            "WALKRE"="Scott Walker", "WALLACE"="MODERATOR", "WALLCE"="MODERATOR"))
-
-# 0 if speaker is MODERATOR or OTHER, 1 if speaker is one of the 10 candidates
-debate.df$is.candidate <- ifelse((debate.df$speaker == "MODERATOR" || 
-                                    debate.df$speaker == "OTHER"), 0, 1)
 # Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
 debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
-# Some text cleaning: Add spaces before and after periods, strip parentheses and add spaces
-debate.df$text <- gsub("\\.", " . ", debate.df$text)
-debate.df$text <- gsub("[()]", " ", debate.df$text)
 
 # Create quanteda corpus object for debate data with appropriate metadata
 text_col2 <- which(colnames(debate.df) == "text")
@@ -104,6 +88,7 @@ drop.docs <- out_debate_stm$docs.removed
 # How many topics to use for debate data? Search over possible values of K
 # Warning: this takes a long time to run!
 possible_k_debate <- 5:15
+# TODO re-run this, is.candidate wasn't populated correctly before!
 model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
                   prevalence = ~ speaker + is.candidate + s(rough.order),
                   data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)

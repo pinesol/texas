@@ -61,7 +61,25 @@ parseDebateText <- function() {
       i <- i + 1
     }
   }
+  # build data frame
   debate.df <- data.frame(speaker=speakers, text=snippets)
+  debate.df$text <- as.character(debate.df$text)
+  # Some text cleaning: Add spaces before and after periods, strip parentheses and add spaces
+  debate.df$text <- gsub("\\.", " . ", debate.df$text)
+  debate.df$text <- gsub("[()]", " ", debate.df$text)  
+  # Map the debate speakers to names that correspond to Twitter candidate values
+  debate.df$speaker <- revalue(debate.df$speaker, c("(UNKNOWN)"="OTHER", "BAIER"="MODERATOR", "BUSH"="Jeb Bush", 
+                                                    "CARSON"="Ben Carson", "MEGAN"="MODERATOR", "PAUL"="Rand Paul",
+                                                    "CHRISTIE"="Chris Christie", "COMMERCIAL"="OTHER", "CRUZ"="Ted Cruz", "FIORINA"="OTHER", 
+                                                    "HUCKABEE"="Mike Huckabee", "KASICH"="John Kasich", "KELLY"="MODERATOR", "MALE"="OTHER",
+                                                    "PERRY"="OTHER", "QUESTION"="OTHER", "RUBIO"="Marco Rubio", "TRUMP"="Donald Trump",
+                                                    "UNIDENTIFIED FEMALE"="OTHER", "UNIDENTIFIED MALE"="OTHER", "WALKER"="Scott Walker",
+                                                    "WALKRE"="Scott Walker", "WALLACE"="MODERATOR", "WALLCE"="MODERATOR"))
+  # 0 if speaker is MODERATOR or OTHER, 1 if speaker is one of the 10 candidates
+  debate.df$is.candidate <- ifelse((debate.df$speaker == "MODERATOR" | 
+                                    debate.df$speaker == "OTHER"), 0, 1)
+  # Return the final debate dataframe
+  debate.df
 }
 
 #debate.df <- parseDebateText()
