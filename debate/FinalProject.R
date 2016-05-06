@@ -9,6 +9,7 @@ require(stm)
 require(plyr)
 require(dplyr)
 require(ggplot2)
+require(reshape2)
 
 source("./parse_debate.R")
 
@@ -45,7 +46,7 @@ best_k <- 34
 # Warning: this takes a REALLY long time to run!
 twitter_34 <- stm(out_stm$documents, out_stm$vocab, K = best_k, init.type="Spectral", 
                  content = ~ subject_matter, # only one content covariate allowed
-                 prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
+                 prevalence = ~ candidate + subject_matter + s(as.numeric(tweet_created)), 
                  max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
 # Model Terminated Before Convergence Reached 
 
@@ -92,8 +93,28 @@ possible_k_debate <- 5:15
 model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
                   prevalence = ~ speaker + is.candidate + s(rough.order),
                   data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)
-plot(model_debate) 
-best_k_debate <- 10
+plot(model_debate) # no idea how to interpret and choose K
+best_k_debate <- 8 
+
+debate_8 <- stm(out_debate_stm$documents, out_debate_stm$vocab, 
+                  K = best_k_debate, init.type="Spectral", 
+                  content = ~ speaker, # only one content covariate allowed
+                  prevalence = ~ speaker + s(rough.order), 
+                  max.em.its=30, emtol=5e-5, data=out_debate_stm$meta, seed=1400)
+topics_describe_debate <- t(labelTopics(debate_8, n=15)$topics)
+topics_describe_debate <- t(labelTopics(debate_10, n=15)$topics)
+
+topic_theta_by_speaker <- cbind(debate_8$theta, speaker = out_debate_stm$meta$speaker)
+topic_theta_by_speaker <- as.data.frame(topic_theta_by_speaker)
+# come up with descriptive names for topics
+colnames(topic_theta_by_speaker) <- c("t1", "t2", "t3", "t4", "t5", 
+                                      "t6", "t7", "t8", "speaker")
+topic_theta_by_speaker$speaker <- factor(topic_theta_by_speaker$speaker, 
+                                            labels = levels(debate.df$speaker))
+grouped <- group_by(topic_theta_by_speaker, speaker)
+topic_means_by_speaker <- as.data.frame(grouped %>% summarize_each(funs(mean)))
+topic_means_by_speaker # stacked relative histogram topic dist
+
 
 # Ideas for next steps:
 # TODO save the plots you make so we don't have to re-compute things to see them.
