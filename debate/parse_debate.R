@@ -82,7 +82,8 @@ parseDebateText <- function() {
   debate.df
 }
 
-#debate.df <- parseDebateText()
+
+debate.df <- parseDebateText()
 
 # reads in closed captioning file 'timestamp_transcript_republican_debate' as a data frame.
 # New speakers are denoted by ">>" or ">>>"
@@ -163,10 +164,10 @@ parseTwitterData <- function() {
   twitter$candidate <- as.factor(twitter$candidate)
   twitter$sentiment <- as.factor(twitter$sentiment)
   twitter$subject_matter <- as.factor(twitter$subject_matter)
-  # Tweets are in pacific daylight time
   twitter$tweet_created <- strptime(twitter$tweet_created, "%m/%d/%y %H:%M", tz="America/Los_Angeles")
   twitter$candidate <- mapvalues(twitter$candidate, from=c("", "No candidate mentioned"), to=c("OTHER", "OTHER"))
   twitter$subject_matter <- mapvalues(twitter$subject_matter, from=c(""), to=c("None of the above"))
+  twitter <- unique(twitter)
   return(twitter)
 }
 
