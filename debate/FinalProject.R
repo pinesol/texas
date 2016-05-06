@@ -10,20 +10,10 @@ require(plyr)
 require(dplyr)
 require(ggplot2)
 
+source("./parse_debate.R")
+
 # Read in the Twitter data from disk
-twitter_full <- read.csv("GOP_REL_ONLY.csv", stringsAsFactors = F)
-View(twitter_full)
-# Let's discard the columns we won't need to use for simplicity
-twitter <- twitter_full[, c("candidate", "sentiment", "subject_matter", 
-                            "retweet_count", "text", "tweet_created")]
-# Change column data formats
-twitter$candidate <- as.factor(twitter$candidate)
-twitter$sentiment <- as.factor(twitter$sentiment)
-twitter$subject_matter <- as.factor(twitter$subject_matter)
-# In creating these timestamps, we discarded timezone data. Worth it to include?
-twitter$tweet_created <- strptime(twitter$tweet_created, "%m/%d/%y %H:%M")
-twitter$candidate <- mapvalues(twitter$candidate, from=c("", "No candidate mentioned"), to=c("OTHER", "OTHER"))
-twitter$subject_matter <- mapvalues(twitter$subject_matter, from=c(""), to=c("None of the above"))
+twitter <- parseTwitterData()
 View(twitter)
 
 # Create quanteda corpus object for twitter data with appropriate metadata
@@ -64,13 +54,13 @@ save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 # Load the saved workspace from disk
 load("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 
-source("./parse_debate.R")
-debate.df$snippets <- as.character(debate.df$snippets)
-levels(debate.df$speakers)
+debate.df <- parseDebateText()
+debate.df$text <- as.character(debate.df$text)
+levels(debate.df$speaker)
 levels(twitter$candidate)
 
 # Map the debate speakers to names that correspond to Twitter candidate values
-debate.df$speakers <- revalue(debate.df$speakers, c("(UNKNOWN)"="OTHER", "BAIER"="MODERATOR", "BUSH"="Jeb Bush", 
+debate.df$speaker <- revalue(debate.df$speaker, c("(UNKNOWN)"="OTHER", "BAIER"="MODERATOR", "BUSH"="Jeb Bush", 
             "CARSON"="Ben Carson", "MEGAN"="MODERATOR", "PAUL"="Rand Paul",
             "CHRISTIE"="Chris Christie", "COMMERCIAL"="OTHER", "CRUZ"="Ted Cruz", "FIORINA"="OTHER", 
             "HUCKABEE"="Mike Huckabee", "KASICH"="John Kasich", "KELLY"="MODERATOR", "MALE"="OTHER",
@@ -79,17 +69,17 @@ debate.df$speakers <- revalue(debate.df$speakers, c("(UNKNOWN)"="OTHER", "BAIER"
             "WALKRE"="Scott Walker", "WALLACE"="MODERATOR", "WALLCE"="MODERATOR"))
 
 # 0 if speaker is MODERATOR or OTHER, 1 if speaker is one of the 10 candidates
-debate.df$is.candidate <- ifelse((debate.df$speakers == "MODERATOR" || 
-                                    debate.df$speakers == "OTHER"), 0, 1)
+debate.df$is.candidate <- ifelse((debate.df$speaker == "MODERATOR" || 
+                                    debate.df$speaker == "OTHER"), 0, 1)
 # Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
 debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
 # Some text cleaning: Add spaces before and after periods, strip parentheses and add spaces
-debate.df$snippets <- gsub("\\.", " . ", debate.df$snippets)
-debate.df$snippets <- gsub("[()]", " ", debate.df$snippets)
+debate.df$text <- gsub("\\.", " . ", debate.df$text)
+debate.df$text <- gsub("[()]", " ", debate.df$text)
 
 # Create quanteda corpus object for debate data with appropriate metadata
-text_col2 <- which(colnames(debate.df) == "snippets")
-debate_corpus <- corpus(debate.df$snippets, docvars = debate.df[,-text_col2])
+text_col2 <- which(colnames(debate.df) == "text")
+debate_corpus <- corpus(debate.df$text, docvars = debate.df[,-text_col2])
 colnames(debate_corpus$documents)
 # DFM: remove APPLAUSE, LAUGHTER, BOOING, English stopwords, numbers, punctuation
 # convert all words to lowercase
@@ -115,7 +105,7 @@ drop.docs <- out_debate_stm$docs.removed
 # Warning: this takes a long time to run!
 possible_k_debate <- 5:15
 model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
-                  prevalence = ~ speakers + is.candidate + s(rough.order),
+                  prevalence = ~ speaker + is.candidate + s(rough.order),
                   data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)
 plot(model_debate) 
 best_k_debate <- 10
