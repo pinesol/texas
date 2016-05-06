@@ -50,18 +50,19 @@ hours <- c('2015-08-06 17:00:00 UTC',
            '2015-08-07 07:00:00 UTC',
            '2015-08-07 08:00:00 UTC',
            '2015-08-07 09:00:00 UTC',
-           '2015-08-07 10:00:00 UTC')
+           '2015-08-07 10:00:00 UTC',
+           '2015-08-07 11:00:00 UTC')
 
 binned_dates <- cut(as.POSIXct(twitter.df$tweet_created), 
-                    breaks=as.POSIXct(hours))
+                    breaks=as.POSIXct(strptime(hours, "%Y-%m-%d %H:%M:%S", tz='UTC')))
 
 plot(binned_dates)
 
 # I don't understand the output of binned dates...all the starting ones are NAs...
 
-# Thank god, nearly all the tweets are in a two hour span between 
-# 4 and 5 am. 
-# THat is not UTC. whatevs.
+# There are two modes in this histogram. They might correspond to the two debates that night
+# but why are they so far apart? The undercard debate was at 5pm EDT, and the primetime debat
+# was at 9pm EDT the same day.
 
 # TODO extract the dates in the two hour time when there are tweets, and thow out everything else
 # THen try some method of aligning the debate with the tweets
