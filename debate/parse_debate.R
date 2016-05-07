@@ -199,12 +199,23 @@ parseTwitterData <- function() {
   tweet_state[which(grepl('\\bphilly\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'PA'
   tweet_state[which(grepl('\\batlanta\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'GA'
   tweet_state[which(grepl('\\bATL\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'GA'
-  tweet_state[which(grepl('\\bMilwaukee\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MN'
+  tweet_state[which(grepl('\\bmilwaukee\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'WI'
+  tweet_state[which(grepl('\\bminneapolis\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MN'
+  tweet_state[which(grepl('\\bdenver\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CO'
+  tweet_state[which(grepl('\\bseattle\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'WA'  
   # DC isn't in twitter's state list, so i'm adding it
   tweet_state[which(grepl('\\bwashington dc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'
   tweet_state[which(grepl('\\bwashington, dc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'
   tweet_state[which(grepl('\\bdc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'  
-  twitter$state <- tweet_state  
+  twitter$state <- as.factor(tweet_state)
+  
+  # Get the geographical region of the country too
+  tweet_region <- character(nrow(twitter))
+  tweet_region <- state.region[match(twitter$state, state.abb)]
+  # Add DC as 'north central'
+  tweet_region[which(grepl('\\bDC\\b', twitter$state))] <- 'North Central'
+  twitter$region <- as.factor(tweet_region)
+  # TODO why does this have NAs, but state doesn't?
   return(twitter)
 }
 
