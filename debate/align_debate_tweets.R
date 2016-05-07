@@ -17,7 +17,6 @@ twitter.df <- parseTwitterData()
 #twitter.df <-twitter.df[substr(twitter.df$text, 1, 3) != 'RT ',]
 # Removing the retweets turns 12733 tweets into 6156 tweets
 
-
 # reorder by time
 twitter.df <- twitter.df[order(twitter.df$tweet_created),]
 
@@ -42,24 +41,28 @@ twitter.df$tweet_hour <- binned_dates
 
 # let's look at the tweets
 live_tweets <-  twitter.df[twitter.df$tweet_hour == '18:00:00' | 
-                          twitter.df$tweet_hour == '19:00:00' | 
-                          twitter.df$tweet_hour == '20:00:00',]
+                           twitter.df$tweet_hour == '19:00:00' | 
+                           twitter.df$tweet_hour == '20:00:00' | 
+                           twitter.df$tweet_hour == '21:00:00',]
 # 3731 live tweets
 
-summary_tweets <- twitter.df[twitter.df$tweet_hour == '08:00:00' | 
+summary_tweets <- twitter.df[twitter.df$tweet_hour == '07:00:00' | 
+                             twitter.df$tweet_hour == '08:00:00' | 
                              twitter.df$tweet_hour == '09:00:00',]
 # 7965 summary tweets
 
+# recode sentiment as -1, 0, 1, then weight by confidence scores
+twitter.df$sentiment <- as.numeric(ifelse(twitter.df$sentiment == 'Positive', 1, 
+                                   ifelse(twitter.df$sentiment == 'Negative', -1, 0)))
+twitter.df$sentiment <- twitter.df$sentiment * as.numeric(twitter.df$sentiment.confidence)
 
-# TODO visualize candidates per bucket
-# make a matrix where each col is the number of times a candidate is mentioned
-# each row is a bucket of time
-# TODO maybe get rid of retweets?
+# NOTE: keeping retweets for sentiment scores for now. the number of times each one was retweeted should be
+# reflected by the extra rows for that tweet.
+# TODO get sentiment score about a particular candidate
+trump_sentiment_scores <- twitter.df$sentiment[which(twitter.df$candidate == 'Donald Trump')]
 
-# TODO maybe we should break the debate up by the moderator questions instead of the candidates who are speaking....
+trump_sentiment_west_scores <- twitter.df$sentiment[which(twitter.df$candidate == 'Donald Trump' & twitter.df$region == 'West')]
 
-
-
-
+# TODO make a heat map of average sentiment score of candidates vs region 
 
 
