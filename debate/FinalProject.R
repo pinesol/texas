@@ -176,8 +176,18 @@ p <- p + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
 p <- p + labs(fill = "Topic", x = "Candidate", y = "Mean Theta by Topic")
 p
 
-# Ideas for next steps:
-# TODO save the plots you make so we don't have to re-compute things to see them.
+# TODO(jackie)
+# TODO choose a twitter topic model you think is best
+# TODO Use the gamma vector for each doc as a predictor of sentiment, do a logistic regression
+# TODO make a pretty graph
+# TODO Report the best predictor topics/words for sentiment. It will probably be candidate names, e.g.
+#     "trump" is a good predictor of negative sentiment.
+# TODO do this two more times, once on the 'live' tweets, and once one the 'reaction' tweets.
+# TODO report if there are any differences. Do the reaction tweets talk about policy more?
+
+
+# TODO(alex)
+# TODO(project): Find the best STM for the debate.
 # TODO Identify which topics make sense, and which ones are noise.
 # TODO Pick titles for the sensical topics, like we did in the homework
 # TODO if very few make sense, we should try fewer topics, or decide topic models don't work well here.
@@ -185,8 +195,11 @@ p
 #      use this later for sure.
 # TODO Make the graphs that we made in the last homework, comparing topics for different candidates,
 #      and topic prevalence over time (if it's not too hard, not clear we'll use this)
+# TODO associate these with the sentiment scores in the text.
 
-
+# TODO Pick the best policy terms from the debate STM. 
+# TODO find the tweets with these terms. Make a DFM from those tweets with the vocab being the terms from the STM.
+# TODO fit a logistic regression from the DRM rows to the sentiment score.
 
 
 
