@@ -17,38 +17,59 @@ source("./parse_debate.R")
 twitter <- parseTwitterData()
 View(twitter)
 
-# Create quanteda corpus object for twitter data with appropriate metadata
-text_col <- which(colnames(twitter) == "text")
-twitter_corpus <- corpus(twitter$text, docvars = twitter[,-text_col])
-colnames(twitter_corpus$documents)
-# DFM: remove # symbol, @ symbol, RT, English stopwords, numbers, punctuation
-# convert all words to lowercase
-twitter_dfm <- dfm(texts(twitter_corpus), removeTwitter = T,
-                   ignoredFeatures = c("rt", stopwords("english")))
-# convert dfm for use with STM package functions
-out <- readCorpus(twitter_dfm, type = "Matrix")
-out$vocab <- features(twitter_dfm)
-# remove terms that occur in less than 5 tweets in entire corpus
-out_stm <- prepDocuments(out$documents, out$vocab, 
-              meta = twitter_corpus$documents,
-              lower.thresh = 5) # Removes 15684 of 18303 terms from vocab
+df_to_corpus_dfm <- function(df, add_stopwords) {
+  # remove twitter handles from tweets and hyperlinks
+  df$text <- gsub("@\\w+ *", "", df$text)
+  df$text <- gsub("t.co\\w+ *", "", df$text)
+  df$text <- gsub("http\\w+ *", "", df$text)
+  t_corpus <- corpus(df$text, docvars = df[,!names(df) %in% "text"])
+  # DFM: remove # symbol, @ symbol, RT, SMART English stopwords, numbers, punctuation
+  # convert all words to lowercase
+  t_dfm <- dfm(texts(t_corpus), removeTwitter = T,
+              ignoredFeatures = c(add_stopwords, stopwords("SMART")))
+  # After removing stopwords, some texts are blank. Remove docs from df and corpus
+  t_dfm <- t_dfm[which(ntoken(t_dfm) != 0),]
+  t_corpus$documents <- t_corpus$documents[which(ntoken(t_dfm) != 0),]
+  return(list(corpus = t_corpus, dfm = t_dfm))
+}
+
+tweets <- df_to_corpus_dfm(twitter, c("rt", "gopdebate", "http", "https", "gopdebates"))
+twitter_corpus <- tweets[["corpus"]]
+twitter_dfm <- tweets[["dfm"]]
+
+dfm_to_stm <- function(corpus, dfm, lower.thresh = 5) {
+  # convert dfm for use with STM package functions
+  out <- readCorpus(dfm, type = "Matrix")
+  out$vocab <- features(dfm)
+  # remove terms that occur in less than 5 tweets in entire corpus
+  out_stm <- prepDocuments(out$documents, out$vocab, 
+                           meta = corpus$documents,
+                           lower.thresh = lower.thresh)
+}
+
+out_stm <- dfm_to_stm(twitter_corpus, twitter_dfm) # Removes 12470 of 14599 terms from vocab
 
 # How many topics to use for Twitter data? Search over possible values of K
 # Warning: this takes a long time to run!
 possible_k <- seq(10, 50, by=8)
 model <- searchK(out_stm$documents, out_stm$vocab, K = possible_k,
-                 prevalence = ~ candidate + subject_matter + as.numeric(tweet_created), 
-                 max.em.its=30, emtol=5e-5, data=out_stm$meta, init.type = "Spectral")
+                 prevalence = ~ candidate + subject_matter, 
+                 max.em.its=30, emtol=5e-5, data = out_stm$meta, init.type = "Spectral")
 plot(model) # best k seems to be 34 topics
 best_k <- 34
 
+
+
+fit_twitter_topic <- function(out_stm, k) {
+  stm(out_stm$documents, out_stm$vocab, K = k, init.type="Spectral", 
+      content = ~ subject_matter, # only one content covariate allowed
+      prevalence = ~ candidate + subject_matter ,
+      max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
+}
+
 # Now let's fit the STM with 34 topics using candidate, subject matter, timestamp, and # retweets
 # Warning: this takes a REALLY long time to run!
-twitter_34 <- stm(out_stm$documents, out_stm$vocab, K = best_k, init.type="Spectral", 
-                 content = ~ subject_matter, # only one content covariate allowed
-                 prevalence = ~ candidate + subject_matter + s(as.numeric(tweet_created)), 
-                 max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
-# Model Terminated Before Convergence Reached 
+twitter_34 <- fit_twitter_topic(out_stm, best_k)
 
 # Save the current workspace to disk
 save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
@@ -62,36 +83,21 @@ debate.df$is.candidate <- ifelse(debate.df$speaker == "MODERATOR" | debate.df$sp
 # Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
 debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
 
-# Create quanteda corpus object for debate data with appropriate metadata
-text_col2 <- which(colnames(debate.df) == "text")
-debate_corpus <- corpus(debate.df$text, docvars = debate.df[,-text_col2])
-colnames(debate_corpus$documents)
-# DFM: remove APPLAUSE, LAUGHTER, BOOING, English stopwords, numbers, punctuation
-# convert all words to lowercase
-debate_dfm <- dfm(texts(debate_corpus),
-              ignoredFeatures = c("applause", "laughter", "booing", stopwords("english")))
-features(debate_dfm)
-# after removing stopwords, some snippets are blank. remove these from dfm and corpus
-drop.rows <- which(ntoken(debate_dfm) == 0)
-debate_dfm <- debate_dfm[-drop.rows,]
-debate_corpus$documents <- debate_corpus$documents[-drop.rows,]
+debates <- df_to_corpus_dfm(debate.df, c("applause", "laughter", "booing", "commercial"))
+debate_corpus <- debates[["corpus"]]
+debate_dfm <- debates[["dfm"]]
 
-# convert dfm for use with STM package functions
-out_debate <- readCorpus(debate_dfm, type = "Matrix")
-out_debate$vocab <- features(debate_dfm)
-# remove terms that occur in less than 5 tweets in entire corpus
-out_debate_stm <- prepDocuments(out_debate$documents, out_debate$vocab, 
-                         meta = debate_corpus$documents,
-                         lower.thresh = 2) # Removing 1720 of 2443 terms
-# using lower threshold of 2 leaves 5 empty documents
-drop.docs <- out_debate_stm$docs.removed
+features(debate_dfm)
+
+out_debate_stm <- dfm_to_stm(debate_corpus, debate_dfm, lower.thresh = 3) # Removes 1810 of 2219 terms from vocab
+out_debate_stm$vocab
 
 # How many topics to use for debate data? Search over possible values of K
 # Warning: this takes a long time to run!
 possible_k_debate <- 5:15
 # TODO re-run this, is.candidate wasn't populated correctly before!
 model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = possible_k_debate,
-                  prevalence = ~ speaker + is.candidate + s(rough.order),
+                  prevalence = ~ speaker,
                   data = out_debate_stm$meta, init.type = "Spectral", emtol=5e-5)
 plot(model_debate) # no idea how to interpret and choose K
 best_k_debate <- 8 
@@ -103,6 +109,7 @@ debate_8 <- stm(out_debate_stm$documents, out_debate_stm$vocab,
                   max.em.its=30, emtol=5e-5, data=out_debate_stm$meta, seed=1400)
 topics_describe_debate <- t(labelTopics(debate_8, n=15)$topics)
 topics_describe_debate <- t(labelTopics(debate_10, n=15)$topics)
+topics_describe_debate
 
 topic_theta_by_speaker <- cbind(debate_10$theta, speaker = out_debate_stm$meta$speaker)
 
