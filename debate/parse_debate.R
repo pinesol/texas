@@ -193,6 +193,7 @@ parseTwitterData <- function() {
   tweet_state[which(grepl('\\bLA\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
   tweet_state[which(grepl('\\bsan francisco\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
   tweet_state[which(grepl('\\bSF\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
+  tweet_state[which(grepl('\\bsan diego\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
   tweet_state[which(grepl('\\bboston\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MA'
   tweet_state[which(grepl('\\bchicago\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'IL'
   tweet_state[which(grepl('\\bphiladelphia\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'PA'
