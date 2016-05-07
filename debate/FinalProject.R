@@ -72,6 +72,25 @@ save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 # Load the saved workspace from disk
 load("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 
+
+# train a normal topic model (not stm)
+
+simple_lda_20 <- LDA(twitter_dfm, 20, method='Gibbs', control=list(seed=1, burnin=100, thin=10, iter=5000))
+print('20 LDA')
+get_terms(simple_lda_20, 10)
+
+simple_lda_15 <- LDA(twitter_dfm, 15, method='Gibbs', control=list(seed=1, burnin=100, thin=10, iter=5000))
+print('15 LDA')
+get_terms(simple_lda_15, 10)
+
+simple_lda_10 <- LDA(twitter_dfm, 10, method='Gibbs', control=list(seed=1, burnin=100, thin=10, iter=5000))
+print('10 LDA')
+get_terms(simple_lda_10, 10)
+
+
+# Debate STM
+
+
 debate.df <- parseDebateText()
 levels(debate.df$speaker)
 levels(twitter$candidate)
