@@ -20,8 +20,6 @@ View(twitter)
 df_to_corpus_dfm <- function(df, add_stopwords) {
   # remove twitter handles from tweets and hyperlinks
   df$text <- gsub("@\\w+ *", "", df$text)
-  df$text <- gsub("t.co\\w+ *", "", df$text)
-  df$text <- gsub("http\\w+ *", "", df$text)
   t_corpus <- corpus(df$text, docvars = df[,!names(df) %in% "text"])
   # DFM: remove # symbol, @ symbol, RT, SMART English stopwords, numbers, punctuation
   # convert all words to lowercase
@@ -33,7 +31,7 @@ df_to_corpus_dfm <- function(df, add_stopwords) {
   return(list(corpus = t_corpus, dfm = t_dfm))
 }
 
-tweets <- df_to_corpus_dfm(twitter, c("rt", "gopdebate", "http", "https", "gopdebates"))
+tweets <- df_to_corpus_dfm(twitter, c("rt", "gopdebate", "http", "https", "gopdebates", "t.co"))
 twitter_corpus <- tweets[["corpus"]]
 twitter_dfm <- tweets[["dfm"]]
 
@@ -58,8 +56,6 @@ model <- searchK(out_stm$documents, out_stm$vocab, K = possible_k,
 plot(model) # best k seems to be 34 topics
 best_k <- 34
 
-
-
 fit_twitter_topic <- function(out_stm, k) {
   stm(out_stm$documents, out_stm$vocab, K = k, init.type="Spectral", 
       content = ~ subject_matter, # only one content covariate allowed
@@ -83,13 +79,16 @@ debate.df$is.candidate <- ifelse(debate.df$speaker == "MODERATOR" | debate.df$sp
 # Stand-in for timestamp. Number from 0 to 1 -- normalized rank of snippet from start to finish
 debate.df$rough.order <- as.numeric(rownames(debate.df))/nrow(debate.df)
 
-debates <- df_to_corpus_dfm(debate.df, c("applause", "laughter", "booing", "commercial"))
+debates <- df_to_corpus_dfm(debate.df, c("applause", "laughter", "booing", "commercial", 
+                      "mr", "governor", "senator"))
 debate_corpus <- debates[["corpus"]]
 debate_dfm <- debates[["dfm"]]
 
+debate.aggregated <- 
+
 features(debate_dfm)
 
-out_debate_stm <- dfm_to_stm(debate_corpus, debate_dfm, lower.thresh = 3) # Removes 1810 of 2219 terms from vocab
+out_debate_stm <- dfm_to_stm(debate_corpus, debate_dfm, lower.thresh = 3) # Removes 1810 of 2216 terms from vocab
 out_debate_stm$vocab
 
 # How many topics to use for debate data? Search over possible values of K
@@ -102,14 +101,37 @@ model_debate <- searchK(out_debate_stm$documents, out_debate_stm$vocab, K = poss
 plot(model_debate) # no idea how to interpret and choose K
 best_k_debate <- 8 
 
-debate_8 <- stm(out_debate_stm$documents, out_debate_stm$vocab, 
-                  K = best_k_debate, init.type="Spectral", 
-                  content = ~ speaker, # only one content covariate allowed
-                  prevalence = ~ speaker + s(rough.order), 
-                  max.em.its=30, emtol=5e-5, data=out_debate_stm$meta, seed=1400)
+fit_debate_topic <- function(out_stm, k) {
+  stm(out_stm$documents, out_stm$vocab, K = k, init.type="Spectral", 
+      content = ~ speaker, # only one content covariate allowed
+      prevalence = ~ speaker ,
+      max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
+}
+
+debate_8 <- fit_debate_topic(out_debate_stm, 8)
+debate_10 <- fit_debate_topic(out_debate_stm, 10)
+debate_15 <- fit_debate_topic(out_debate_stm, 15)
+
 topics_describe_debate <- t(labelTopics(debate_8, n=15)$topics)
 topics_describe_debate <- t(labelTopics(debate_10, n=15)$topics)
 topics_describe_debate
+labelTopics(debate_8, n=15)
+labelTopics(debate_15, n=15)
+
+debate_LDA_6 <- LDA(debate_dfm, k = 6, method = "Gibbs", 
+                    control=list(seed=1500, burnin=500, thin=10, iter=10000))
+
+debate_LDA_8 <- LDA(debate_dfm, k = 8, method = "Gibbs", 
+                     control=list(seed=1500, burnin=500, thin=10, iter=10000))
+debate_LDA_10 <- LDA(debate_dfm, k = 10, method = "Gibbs", 
+                     control=list(seed=1500, burnin=500, thin=10, iter=10000))
+get_terms(debate_LDA_8, k = 15)
+get_terms(debate_LDA_10, k = 15)
+get_terms(debate_LDA_6, k = 15)
+beta_terms <- debate_LDA_10@beta
+names(beta_terms) <- features(debate_dfm)
+
+
 
 topic_theta_by_speaker <- cbind(debate_10$theta, speaker = out_debate_stm$meta$speaker)
 
