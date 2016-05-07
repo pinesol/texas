@@ -159,7 +159,7 @@ parseTwitterData <- function() {
   #View(twitter_full)
   # Let's discard the columns we won't need to use for simplicity
   twitter <- twitter_full[, c("candidate", "sentiment", "subject_matter", 
-                              "retweet_count", "text", "tweet_created")]
+                              "retweet_count", "text", "tweet_created", "tweet_location")]
   # Change column data formats
   twitter$candidate <- as.factor(twitter$candidate)
   twitter$sentiment <- as.factor(twitter$sentiment)
@@ -169,6 +169,42 @@ parseTwitterData <- function() {
   twitter$subject_matter <- mapvalues(twitter$subject_matter, from=c(""), to=c("None of the above"))
   twitter <- unique(twitter)
   twitter$text = iconv(twitter$text, "latin1", "ASCII", sub="") # Remove non ascii chars
+
+  # Add US state locations
+  tweet_state <- character(nrow(twitter))
+  for (i in 1:length(state.name)) {
+    name <- state.name[i]
+    abb <- state.abb[i]
+    # assign the state code to the locations that have the full state name
+    name_regex <- paste('\\b', name, '\\b', sep='')
+    tweet_state[which(grepl(name_regex, twitter$tweet_location, ignore.case=TRUE))] <- abb
+    # look for the state code in the location
+    abb_regex <- paste('\\b', abb, '\\b', sep='')
+    tweet_state[which(grepl(abb_regex, twitter$tweet_location, ignore.case=TRUE))] <- abb
+  }
+  # Add major cities explicitly
+  tweet_state[which(grepl('\\bnyc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'NY'
+  tweet_state[which(grepl('\\bbrooklyn\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'NY'
+  tweet_state[which(grepl('\\bdetroit\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MI'
+  tweet_state[which(grepl('\\blas vegas\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'NV'
+  tweet_state[which(grepl('\\bvegas\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'NV'  
+  tweet_state[which(grepl('\\bnola\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'LA'
+  tweet_state[which(grepl('\\bLos Angeles\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'  
+  tweet_state[which(grepl('\\bLA\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
+  tweet_state[which(grepl('\\bsan francisco\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
+  tweet_state[which(grepl('\\bSF\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'CA'
+  tweet_state[which(grepl('\\bboston\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MA'
+  tweet_state[which(grepl('\\bchicago\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'IL'
+  tweet_state[which(grepl('\\bphiladelphia\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'PA'
+  tweet_state[which(grepl('\\bphilly\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'PA'
+  tweet_state[which(grepl('\\batlanta\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'GA'
+  tweet_state[which(grepl('\\bATL\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'GA'
+  tweet_state[which(grepl('\\bMilwaukee\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'MN'
+  # DC isn't in twitter's state list, so i'm adding it
+  tweet_state[which(grepl('\\bwashington dc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'
+  tweet_state[which(grepl('\\bwashington, dc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'
+  tweet_state[which(grepl('\\bdc\\b', twitter$tweet_location, ignore.case=TRUE))] <- 'DC'  
+  twitter$state <- tweet_state  
   return(twitter)
 }
 
@@ -176,6 +212,13 @@ parseTwitterData <- function() {
 #View(twitter)
 
 
+# create state name -> code map
+#look for places containing the full state name starting from the right, map them to the code
+#look for places containing the state code, for each code, using regex
+
+# look for full state names, two letter abbrievations: CA, C.A., ca.
+
+#state.region looks useful
 
 
 
