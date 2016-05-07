@@ -12,6 +12,12 @@ setwd("~/texas/debate/")
 source("./parse_debate.R")
 
 twitter.df <- parseTwitterData()
+
+# TODO removing retweets
+#twitter.df <-twitter.df[substr(twitter.df$text, 1, 3) != 'RT ',]
+# Removing the retweets turns 12733 tweets into 6156 tweets
+
+
 # reorder by time
 twitter.df <- twitter.df[order(twitter.df$tweet_created),]
 
@@ -29,10 +35,28 @@ sum(twitter.df$tweet_created >= debate_start & twitter.df$tweet_created < debate
 # Returns 3570
 
 binned_dates <- cut(twitter.df$tweet_created, breaks = "hour")
-sum(is.na(binned_dates))
 levels(binned_dates) <- sapply(strsplit(levels(binned_dates), " "), "[", 2)
 qplot(binned_dates) + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
 
+twitter.df$tweet_hour <- binned_dates
+
+# let's look at the tweets
+live_tweets <-  twitter.df[twitter.df$tweet_hour == '18:00:00' | 
+                          twitter.df$tweet_hour == '19:00:00' | 
+                          twitter.df$tweet_hour == '20:00:00',]
+# 3731 live tweets
+
+summary_tweets <- twitter.df[twitter.df$tweet_hour == '08:00:00' | 
+                             twitter.df$tweet_hour == '09:00:00',]
+# 7965 summary tweets
+
+
+# TODO visualize candidates per bucket
+# make a matrix where each col is the number of times a candidate is mentioned
+# each row is a bucket of time
+# TODO maybe get rid of retweets?
+
+# TODO maybe we should break the debate up by the moderator questions instead of the candidates who are speaking....
 
 
 
