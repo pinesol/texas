@@ -45,7 +45,7 @@ dfm_to_stm <- function(corpus, dfm, lower.thresh = 5) {
                            lower.thresh = lower.thresh)
 }
 
-out_stm <- dfm_to_stm(twitter_corpus, twitter_dfm) # Removes 12470 of 14599 terms from vocab
+out_stm <- dfm_to_stm(twitter_corpus, twitter_dfm) # Removes 12384 of 14516 terms from vocab
 
 # How many topics to use for Twitter data? Search over possible values of K
 # Warning: this takes a long time to run!
@@ -58,20 +58,49 @@ best_k <- 34
 
 fit_twitter_topic <- function(out_stm, k) {
   stm(out_stm$documents, out_stm$vocab, K = k, init.type="Spectral", 
-      content = ~ subject_matter, # only one content covariate allowed
+      content = ~ candidate, # only one content covariate allowed
       prevalence = ~ candidate + subject_matter ,
-      max.em.its=30, emtol=5e-5, data=out_stm$meta, seed=1100)
+      max.em.its=50, emtol=5e-5, data=out_stm$meta, seed=1100)
 }
 
 # Now let's fit the STM with 34 topics using candidate, subject matter, timestamp, and # retweets
 # Warning: this takes a REALLY long time to run!
-twitter_34 <- fit_twitter_topic(out_stm, best_k)
+twitter_34 <- fit_twitter_topic(out_stm, 34)
+twitter_42 <- fit_twitter_topic(out_stm, 42)
+twitter_50 <- fit_twitter_topic(out_stm, 50)
 
 # Save the current workspace to disk
 save.image("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 # Load the saved workspace from disk
 load("~/Desktop/Text as Data/texas/debate/project_jackie.RData")
 
+
+require(glmnet)
+
+glm_stm_model <- function(stm_model, out_stm = out_stm) {
+  pos.neg <- select(out_stm$meta, -tweet_created)
+  pos.neg <- filter(pos.neg, sentiment != "Neutral")
+  pos.neg <- droplevels(pos.neg)
+  t50_reduced <- stm_model$theta[which(out_stm$meta$sentiment != "Neutral"),]
+  t50_reduced <- as.data.frame(t50_reduced)
+  t50_plus_candidate <- cbind(t50_reduced, candidate = pos.neg$candidate, 
+                              sentiment = pos.neg$sentiment)
+  t50_plus_candidate <- select(t50_plus_candidate, -V1)
+  theta_sentiment <- glm(sentiment ~ . -candidate, data = t50_plus_candidate,
+                         family = "binomial")
+  theta_candidate_sentiment <- glm(sentiment ~ . , data = t50_plus_candidate,
+                                   family = "binomial")
+  print(anova(theta_sentiment, theta_candidate_sentiment, test="Chisq"))
+  summary(theta_sentiment)
+}
+
+glm_stm_model(twitter_50, out_stm)
+glm_stm_model(twitter_42, out_stm)
+glm_stm_model(twitter_34, out_stm)
+
+
+#theta_sentiment <- cv.glmnet(x = t50_reduced, y = pos.neg$sentiment, 
+#                          family = "binomial", alpha = 1, nfolds = 10)
 
 # train a normal topic model (not stm)
 
@@ -184,6 +213,7 @@ p
 #     "trump" is a good predictor of negative sentiment.
 # TODO do this two more times, once on the 'live' tweets, and once one the 'reaction' tweets.
 # TODO report if there are any differences. Do the reaction tweets talk about policy more?
+
 
 
 # TODO(alex)
