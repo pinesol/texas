@@ -82,8 +82,28 @@ parseDebateText <- function() {
   debate.df
 }
 
+#debate.df <- parseDebateText()
 
-debate.df <- parseDebateText()
+# Returns a data frame where the text from each candidate is merged together.
+parseMergedDebate <- function() {
+  debate.df <- parseDebateText()
+  
+  speakers <- unique(debate.df$speaker)
+  speaker_texts <- character(length(speakers))
+  
+  for (i in 1:length(speakers)) {
+    speaker_texts[i] <- paste(debate.df$text[debate.df$speaker == speakers[i]], collapse = ' ')
+  }  
+  
+  new.debate.df <- data.frame(speaker=speakers, text=speaker_texts)
+  # 0 if speaker is MODERATOR or OTHER, 1 if speaker is one of the 10 candidates
+  new.debate.df$is.candidate <- ifelse((new.debate.df$speaker == "MODERATOR" | 
+                                        new.debate.df$speaker == "OTHER"), 0, 1)
+  return(new.debate.df)
+}
+
+#merged.debate.df <- parseMergedDebate()
+
 
 # reads in closed captioning file 'timestamp_transcript_republican_debate' as a data frame.
 # New speakers are denoted by ">>" or ">>>"
@@ -159,7 +179,7 @@ parseTwitterData <- function() {
   #View(twitter_full)
   # Let's discard the columns we won't need to use for simplicity
   twitter <- twitter_full[, c("candidate", "sentiment", "subject_matter", 
-                              "retweet_count", "text", "tweet_created", "tweet_location")]
+                              "retweet_count", "text", "tweet_created", "tweet_location", "sentiment.confidence")]
   # Change column data formats
   twitter$candidate <- as.factor(twitter$candidate)
   twitter$sentiment <- as.factor(twitter$sentiment)
@@ -231,6 +251,8 @@ parseTwitterData <- function() {
 # look for full state names, two letter abbrievations: CA, C.A., ca.
 
 #state.region looks useful
+
+
 
 
 
