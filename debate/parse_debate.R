@@ -105,32 +105,6 @@ parseMergedDebate <- function() {
 #merged.debate.df <- parseMergedDebate()
 
 
-# reads in closed captioning file 'timestamp_transcript_republican_debate' as a data frame.
-# New speakers are denoted by ">>" or ">>>"
-# The closed captioning text doesn't always match the transcript.
-# I think we'll use the closed captions as guideposts, and lerp between them.
-parse_captions <- function() {
-  cc_lines <- readLines('timestamp_transcript_republican_debate')
-  line_index <- 1
-  caption_start_times <- character()
-  caption_text <- character()
-  while (line_index < length(cc_lines)) {
-    text <- trimws(tolower(cc_lines[line_index+2]))
-    if (substr(text, 0, 2) == '>>') {
-      # Skip the caption index, you don't need it
-      caption_index <- cc_lines[line_index]
-      # Only extract the first hh:mm:ss of the time interval  
-      caption_start_times[caption_index] <- substr(cc_lines[line_index+1], 0, 8)
-      # Removing leading '>>' or '>>>'
-      caption_text[caption_index] <- gsub('^[>]+ ', '', text)
-    }
-    line_index <- line_index + 4 # Skipping one more for the blank line  
-  }
-  data.frame(start_time=caption_start_times, text=caption_text)
-}
-
-#captions.df <- parse_captions()
-
 # TODO create timestamps based on the total time of the debate, commercial breaks, and the number of characters in each snippet.
 # TODO go through snippets and captions together, assigning a caption to a snippet index if the caption and the snippet start the same.
 # TODO come up with a timestamp for each snippet, using the closed caption time, the starting time, and the commericials.
@@ -179,7 +153,7 @@ parseTwitterData <- function() {
   #View(twitter_full)
   # Let's discard the columns we won't need to use for simplicity
   twitter <- twitter_full[, c("candidate", "sentiment", "subject_matter", 
-                              "retweet_count", "text", "tweet_created", "tweet_location", "sentiment.confidence")]
+                              "retweet_count", "text", "tweet_created", "tweet_location", "sentiment.confidence", "name")]
   # Change column data formats
   twitter$candidate <- as.factor(twitter$candidate)
   twitter$sentiment <- as.factor(twitter$sentiment)
@@ -243,16 +217,8 @@ parseTwitterData <- function() {
 #twitter <- parseTwitterData()
 #View(twitter)
 
-
-# create state name -> code map
-#look for places containing the full state name starting from the right, map them to the code
-#look for places containing the state code, for each code, using regex
-
-# look for full state names, two letter abbrievations: CA, C.A., ca.
-
-#state.region looks useful
-
-
+# 18% of the twitter users in this dataset have more than one tweet
+# length(which(table(twitter$name) > 1)) / length(unique(twitter$name)) = 18%
 
 
 
