@@ -61,7 +61,7 @@ get_terms(debate_LDA_15, 10)
 print('20 LDA')
 get_terms(debate_LDA_20, 10)
 
-debate_LDA_15_names <- c('common core', 'mods1', 'fp1', 'social sec', 
+debate_LDA_15_names <- c('common core', 'mods1', 'foreign pol', 'social sec', 
                          'mods1', 'immigration', 'economics', 'border', 'budget', 
                          'Paul Ryan', 'military', 'mods2', 'gen election',
                          'iran', 'marriage')
@@ -102,7 +102,7 @@ twitter_dfm <- twitter_dfm[which(ntoken(twitter_dfm) != 0),]
 
 # Use the poterior distribution of the debate LDA to get topics for the tweets
 twitter.topics <- posterior(debate_LDA_15, twitter_dfm)
-# twitter.topics$topics has the topic distribution
+# twitter.topics$topics has the topic distribution for each tweet
 top.twitter.topics <- apply(twitter.topics$topics, 1, which.max)
 # these have names like "text 12745" corresponding to the tweet they belong to
 
@@ -110,14 +110,14 @@ tweet_indices <- as.numeric(substring(names(top.twitter.topics), 5))
 
 # Adding the LDA 15 topic number to the twitter df. 
 # Entries with a zero have no topic.
-twitter.df$debate_topics <- integer(nrow(twitter.df))
-twitter.df$debate_topics[tweet_indices] <- top.twitter.topics
+twitter.df$debate_topic <- integer(nrow(twitter.df))
+twitter.df$debate_topic[tweet_indices] <- top.twitter.topics
 # Adding the names of the topics to twitter.df
-twitter.df$debate_topic_names <- character(nrow(twitter.df))
-twitter.df$debate_topic_names[tweet_indices] <- debate_LDA_15_names[top.twitter.topics]
+twitter.df$debate_topic_name <- character(nrow(twitter.df))
+twitter.df$debate_topic_name[tweet_indices] <- debate_LDA_15_names[top.twitter.topics]
 
 # Examine the distribution of debate topics. no topic is most popular, followed by moderator stuff.
-hist(twitter.df$debate_topics)
+hist(twitter.df$debate_topic)
 
 save.image('~/texas/debate/debate_lda.RData')
 
