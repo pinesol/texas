@@ -1,0 +1,125 @@
+---
+title: "Text as Data Final Paper"
+author: "Jacqueline Gutman, Alex Pine"
+date: "May 10, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# setwd("~/Desktop/Text as Data/texas/debate/")
+load("project_jackie.RData")
+knitr::opts_chunk$set(echo=TRUE, cache=FALSE, warning=FALSE, comment="   ",
+    fig.align='center', fig.width = 4.0, fig.height = 3.5)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# LDA model for debate: debate_LDA_15
+# topic names for debate: debate_LDA_15_names
+# data frame for twitter: twitter.df
+# dfm for twitter: twitter_dfm
+# posterior topic distribution (LDA) = @gamma
+# LDA model for twitter: use simple_lda_20, simple_lda_15, simple_lda_10
+# LDA posterior for twitter using debate topics: twitter.topics$topics
+all(nrow(twitter_dfm) == sum(twitter.df$debate_topic != 0),
+    nrow(twitter_dfm)  == nrow(twitter.topics$topics))
+table(twitter.df$debate_topic)
+debate_LDA_15_names
+```
+
+```{r}
+# pos.neg <- dplyr::select(twitter.df[tweet_indices,], -tweet_created)
+# pos.neg <- filter(pos.neg, sentiment != "Neutral")
+# pos.neg$candidate[pos.neg$candidate == "OTHER"] <- NA
+# pos.neg$subject_matter[pos.neg$subject_matter == "None of the above"] <- NA
+# pos.neg <- droplevels(pos.neg)
+levels(pos.neg$sentiment)
+levels(pos.neg$candidate)
+levels(pos.neg$subject_matter)
+dropped.rows <- which(twitter.df[tweet_indices, "sentiment"] == "Neutral")
+nrow(pos.neg) + length(dropped.rows) == nrow(twitter.topics$topics)
+all(dim(simple_lda_15@gamma) == dim(twitter.topics$topics), 
+    class(simple_lda_15@gamma) == class(twitter.topics$topics))
+dim(simple_lda_25@gamma[-dropped.rows,])
+dim(twitter.topics$topics[-dropped.rows,])
+all(abs(rowSums(simple_lda_25@gamma) - 1) < 1e-10) 
+all(abs(rowSums(twitter.topics$topics) - 1) < 1e-10) 
+```
+
+```{r}
+# build a logistic regression from lda model parameters, additional predictors as parameter
+glm_lda_model <- function(lda_model_post, modified_data, 
+                          predictors = c("candidate", "subject_matter")) {
+    x <- lda_model_post[,-2] # need to drop one of the topics, I drop #2
+    colnames(x) <- paste("topic", 1:(ncol(x)+1), sep=".")[-2]
+    data <- cbind(modified_data, x)
+    formula <- paste("sentiment ~ ", 
+                    paste(c(colnames(x), predictors), collapse = " + "))
+    fit <- glm(as.formula(formula) , data = data, family = "binomial")
+    print(summary(fit))
+    fit
+} 
+
+# use forward-backward stepwise procedure with AIC criterion to choose best model from full model
+stepwise_twitter <- function(lda_model_post, modified_data, 
+                        predictors = c("candidate", "subject_matter")) {
+  x <- lda_model_post # don't drop any topics
+  colnames(x) <- paste("topic", 1:(ncol(x)), sep=".")
+  data <- cbind(modified_data, x)
+  formula <- paste("sentiment ~ ", 
+                   paste(c(colnames(x), predictors), collapse = " + "))
+  fit <- glm(as.formula(formula) , data = data, family = "binomial")
+  stepAIC(fit, trace = FALSE) # stops verbose printing
+}
+```
+
+```{r, eval=FALSE}
+sentiment_twitter_candidate_10 <- glm_lda_model(simple_lda_10@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+sentiment_twitter_candidate_15 <- glm_lda_model(simple_lda_15@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+sentiment_twitter_candidate_20 <- glm_lda_model(simple_lda_20@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+sentiment_twitter_candidate_25 <- glm_lda_model(simple_lda_25@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+sentiment_twitter_candidate_30 <- glm_lda_model(simple_lda_30@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+sentiment_twitter_candidate_50 <- glm_lda_model(simple_lda_50@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg, predictors = "candidate")
+```
+
+```{r}
+which.max(c(k10 = simple_lda_10@loglikelihood, k15 = simple_lda_15@loglikelihood, 
+            k20 = simple_lda_20@loglikelihood, k25 = simple_lda_25@loglikelihood, 
+            k30 = simple_lda_30@loglikelihood, k50 = simple_lda_50@loglikelihood))
+which.min(c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
+          k20 = AIC(sentiment_twitter_candidate_20), k25 = AIC(sentiment_twitter_candidate_25),
+          k30 = AIC(sentiment_twitter_candidate_30), k50 = AIC(sentiment_twitter_candidate_50)))
+sort(c(k10 = BIC(sentiment_twitter_candidate_10), k15 = BIC(sentiment_twitter_candidate_15),
+            k20 = BIC(sentiment_twitter_candidate_20), k25 = BIC(sentiment_twitter_candidate_25),
+            k30 = BIC(sentiment_twitter_candidate_30), k50 = BIC(sentiment_twitter_candidate_50)),
+     decreasing = TRUE)
+
+anova(sentiment_twitter_candidate_20, sentiment_twitter_candidate_25, test="Chisq")
+```
+
+```{r}
+sentiment_debate_candidate <- glm_lda_model(twitter.topics$topics[-dropped.rows,] ,
+                                modified_data = pos.neg, predictors = "candidate")
+AIC(sentiment_debate_candidate); BIC(sentiment_debate_candidate)
+AIC(sentiment_twitter_candidate_25); BIC(sentiment_twitter_candidate_25)
+anova(sentiment_debate_candidate, sentiment_twitter_candidate_25, test="Chisq")
+```
+
+```{r}
+require(MASS)
+step_25_candidate_subject <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], 
+                            pos.neg.sub, predictors = c("candidate", "subject_matter"))
+step_25_candidate_subject$anova
+summary(step_25_candidate_subject)
+
+step_debate_topics <- stepwise_twitter(twitter.topics$topics[-dropped.rows,],  
+                        pos.neg.sub, predictors = c("candidate", "subject_matter"))
+step_debate_topics$anova
+summary(step_debate_topics)
+anova(step_debate_topics, step_25_candidate_subject, test="Chisq")
+```

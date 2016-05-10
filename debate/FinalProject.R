@@ -93,6 +93,7 @@ glm_stm_model <- function(stm_model, out_stm = out_stm) {
   print(anova(theta_sentiment, theta_candidate_sentiment, test="Chisq"))
   summary(theta_sentiment)
 }
+################################################################################
 
 # LDA model for debate: debate_LDA_15
 # topic names for debate: debate_LDA_15_names
@@ -118,9 +119,9 @@ dropped.rows <- which(twitter.df[tweet_indices, "sentiment"] == "Neutral")
 nrow(pos.neg) + length(dropped.rows) == nrow(twitter.topics$topics)
 all(dim(simple_lda_15@gamma) == dim(twitter.topics$topics), 
     class(simple_lda_15@gamma) == class(twitter.topics$topics))
-dim(simple_lda_15@gamma[-dropped.rows,])
+dim(simple_lda_25@gamma[-dropped.rows,])
 dim(twitter.topics$topics[-dropped.rows,])
-all(abs(rowSums(simple_lda_15@gamma) - 1) < 1e-10) 
+all(abs(rowSums(simple_lda_25@gamma) - 1) < 1e-10) 
 all(abs(rowSums(twitter.topics$topics) - 1) < 1e-10) 
 
 glm_lda_model <- function(lda_model_post, modified_data, 
@@ -144,16 +145,16 @@ stepwise_twitter <- function(lda_model_post, modified_data,
   formula <- paste("sentiment ~ ", 
                    paste(c(colnames(x), predictors), collapse = " + "))
   fit <- glm(as.formula(formula) , data = data, family = "binomial")
-  stepAIC(fit)
+  stepAIC(fit, trace = FALSE)
 }
 
-step_25_candidate_subject <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], pos.neg, predictors = 
-                              c("candidate", "subject_matter"))
+step_25_candidate_subject <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], 
+                        pos.neg.sub, predictors = c("candidate", "subject_matter"))
 step_25_candidate_subject$anova
 summary(step_25_candidate_subject)
 
 step_debate_topics <- stepwise_twitter(twitter.topics$topics[-dropped.rows,],  
-                        pos.neg, predictors = c("candidate", "subject_matter"))
+                        pos.neg.sub, predictors = c("candidate", "subject_matter"))
 step_debate_topics$anova
 summary(step_debate_topics) # summarize the logistic regression model chosen by stepwise with AIC criterion
 
@@ -214,8 +215,6 @@ which.max(c(k10 = simple_lda_10@loglikelihood, k15 = simple_lda_15@loglikelihood
 # choose 25 LDA topics from twitter based on AIC, BIC , log likelihood, Chi-square test ?
 summary(sentiment_twitter_candidate_25)
 
-
-
 which.min(c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
           k20 = AIC(sentiment_twitter_candidate_20), k25 = AIC(sentiment_twitter_candidate_25),
           k30 = AIC(sentiment_twitter_candidate_30), k50 = AIC(sentiment_twitter_candidate_50)))
@@ -227,6 +226,8 @@ anova(sentiment_twitter_candidate_20, sentiment_twitter_candidate_25, test="Chis
 sentiment_debate_candidate <- glm_lda_model(twitter.topics$topics[-dropped.rows,] ,
                                 modified_data = pos.neg, predictors = "candidate")
 AIC(sentiment_debate_candidate); BIC(sentiment_debate_candidate)
+
+################################################################################
 
 #theta_sentiment <- cv.glmnet(x = t50_reduced, y = pos.neg$sentiment, 
 #                          family = "binomial", alpha = 1, nfolds = 10)
