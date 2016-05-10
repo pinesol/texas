@@ -119,13 +119,12 @@ sentiment_twitter_candidate_50 <- glm_lda_model(simple_lda_50@gamma[-dropped.row
 which.max(c(k10 = simple_lda_10@loglikelihood, k15 = simple_lda_15@loglikelihood, 
             k20 = simple_lda_20@loglikelihood, k25 = simple_lda_25@loglikelihood, 
             k30 = simple_lda_30@loglikelihood, k50 = simple_lda_50@loglikelihood))
-which.min(c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
+sort(c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
           k20 = AIC(sentiment_twitter_candidate_20), k25 = AIC(sentiment_twitter_candidate_25),
           k30 = AIC(sentiment_twitter_candidate_30), k50 = AIC(sentiment_twitter_candidate_50)))
 sort(c(k10 = BIC(sentiment_twitter_candidate_10), k15 = BIC(sentiment_twitter_candidate_15),
             k20 = BIC(sentiment_twitter_candidate_20), k25 = BIC(sentiment_twitter_candidate_25),
-            k30 = BIC(sentiment_twitter_candidate_30), k50 = BIC(sentiment_twitter_candidate_50)),
-     decreasing = TRUE)
+            k30 = BIC(sentiment_twitter_candidate_30), k50 = BIC(sentiment_twitter_candidate_50)))
 
 anova(sentiment_twitter_candidate_20, sentiment_twitter_candidate_25, test="Chisq")
 anova(sentiment_twitter_candidate_25, sentiment_twitter_candidate_50, test="Chisq")
@@ -151,6 +150,20 @@ step_debate_topics <- stepwise_twitter(twitter.topics$topics[-dropped.rows,],
 step_debate_topics$anova
 summary(step_debate_topics)
 anova(step_debate_topics, step_25_candidate_subject, test="Chisq")
+```
+
+```{r}
+step_25_candidate <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], 
+                            pos.neg.sub, predictors = c("candidate"))
+step_25_candidate$anova
+summary(step_25_candidate)
+
+step_debate_candidate_topics <- stepwise_twitter(twitter.topics$topics[-dropped.rows,],  
+                        pos.neg.sub, predictors = c("candidate"))
+step_debate_candidate_topics$anova
+summary(step_debate_candidate_topics)
+anova(step_debate_candidate_topics, step_25_candidate, test="Chisq")
+
 ```
 
 ```{r}
