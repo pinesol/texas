@@ -165,14 +165,16 @@ anova(step_debate_topics, step_25_candidate_subject, test = "Chisq")
 
 pos.neg.sub <- pos.neg[c("sentiment", "candidate", "subject_matter")]
 levels(pos.neg.sub$candidate) <- c(levels(pos.neg.sub$candidate), "other")
+pos.neg.sub$candidate <- relevel(pos.neg.sub$candidate, ref = "other")
 pos.neg.sub$candidate[is.na(pos.neg.sub$candidate)] <- "other"
 levels(pos.neg.sub$subject_matter) <- c(levels(pos.neg.sub$subject_matter), "other")
 pos.neg.sub$subject_matter[is.na(pos.neg.sub$subject_matter)] <- "other"
+pos.neg.sub$subject_matter <- relevel(pos.neg.sub$subject_matter, ref = "other")
 
 dummy_candidate <- dummy(pos.neg.sub$candidate, 
-                         levels(pos.neg.sub$candidate)[-nlevels(pos.neg.sub$candidate)])
-dummy_subject_matter <- dummy(pos.neg.sub$candidate, 
-                         levels(pos.neg.sub$candidate)[-nlevels(pos.neg.sub$candidate)])
+                         levels(pos.neg.sub$candidate)[-1])
+dummy_subject_matter <- dummy(pos.neg.sub$subject_matter, 
+                         levels(pos.neg.sub$subject_matter)[-1])
 candidate_only <- cv.glmnet(x = dummy_candidate, y = pos.neg.sub$sentiment, 
           family = "binomial", alpha = 1, nfolds = 10)
 candidate_subject_only <- cv.glmnet(x = cbind(dummy_candidate, dummy_subject_matter), 
@@ -185,47 +187,63 @@ coef(candidate_subject_only, s="lambda.min")
 # yes, subject matter significantly improves the model compared to sentiment alone
 # subjects that significantly predict sentiment are Immigration, Racial Issues, 
 # Religion, Women's Issues, and other
-# significant negative predictors of sentiment: Chris Christie, Donald Trump, Jeb Bush,
-# Huckabee, Rand Paul, Scott Walker, and no candidate mentioned-- basically, everyone but 
-# Kasich, Cruz, and Rubio!
+require(arm)
+require(coefplot)
 candidate_only2 <- glm(sentiment ~ candidate, data = pos.neg.sub, family = "binomial")
 candidate_subject_only2 <- glm(sentiment ~ candidate + subject_matter, data = pos.neg.sub, 
                                family = "binomial")
 summary(candidate_only2)
+rename_candidate <- c("other", gsub("candidate*", "", names(coef(candidate_only2))[2:11]))
+names(rename_candidate) <- names(coef(candidate_only2))
+arm::coefplot(candidate_only2, varnames = rename_candidate)
+coefplot::coefplot(candidate_only2, sort="magnitude", newNames = rename_candidate)
+
 summary(candidate_subject_only2)
+rename_subject <- c("other", gsub("subject_matter*", "", names(coef(candidate_subject_only2))[12:22]))
+names(rename_subject) <- names(coef(candidate_subject_only2))[c(1,12:22)]
+#coefplot::coefplot(candidate_subject_only2, predictors = "subject_matter", sort="magnitude", newNames = rename_subject)
 anova(candidate_only2, candidate_subject_only2, test = "Chisq")
 
-sentiment_twitter_candidate_10 <- glm_lda_model(simple_lda_10@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-sentiment_twitter_candidate_15 <- glm_lda_model(simple_lda_15@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-sentiment_twitter_candidate_20 <- glm_lda_model(simple_lda_20@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-sentiment_twitter_candidate_25 <- glm_lda_model(simple_lda_25@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-sentiment_twitter_candidate_30 <- glm_lda_model(simple_lda_30@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-sentiment_twitter_candidate_50 <- glm_lda_model(simple_lda_50@gamma[-dropped.rows,] ,
-                              modified_data = pos.neg, predictors = "candidate")
-which.max(c(k10 = simple_lda_10@loglikelihood, k15 = simple_lda_15@loglikelihood, 
-            k20 = simple_lda_20@loglikelihood, k25 = simple_lda_25@loglikelihood, 
-            k30 = simple_lda_30@loglikelihood, k50 = simple_lda_50@loglikelihood))
 
+
+candidate_glm <- as.data.frame(summary(candidate_only2)$coef)
+p <- ggplot(candidate_glm, aes(y=Estimate)) 
+p + geom_bar(position="dodge", stat="identity")
+
+sentiment_twitter_candidate_10 <- glm_lda_model(simple_lda_10@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sentiment_twitter_candidate_15 <- glm_lda_model(simple_lda_15@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sentiment_twitter_candidate_20 <- glm_lda_model(simple_lda_20@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sentiment_twitter_candidate_25 <- glm_lda_model(simple_lda_25@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sentiment_twitter_candidate_30 <- glm_lda_model(simple_lda_30@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sentiment_twitter_candidate_50 <- glm_lda_model(simple_lda_50@gamma[-dropped.rows,] ,
+                              modified_data = pos.neg.sub, predictors = "candidate")
+sort((c(k10 = simple_lda_10@loglikelihood, k15 = simple_lda_15@loglikelihood, 
+            k20 = simple_lda_20@loglikelihood, k25 = simple_lda_25@loglikelihood, 
+            k30 = simple_lda_30@loglikelihood, k50 = simple_lda_50@loglikelihood)), 
+     decreasing = TRUE)
+
+sort((c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
+            k20 = AIC(sentiment_twitter_candidate_20), k25 = AIC(sentiment_twitter_candidate_25),
+            k30 = AIC(sentiment_twitter_candidate_30), k50 = AIC(sentiment_twitter_candidate_50))))
+sort(c(k10 = BIC(sentiment_twitter_candidate_10), k15 = BIC(sentiment_twitter_candidate_15),
+       k20 = BIC(sentiment_twitter_candidate_20), k25 = BIC(sentiment_twitter_candidate_25),
+       k30 = BIC(sentiment_twitter_candidate_30), k50 = BIC(sentiment_twitter_candidate_50)))
 
 # choose 25 LDA topics from twitter based on AIC, BIC , log likelihood, Chi-square test ?
-summary(sentiment_twitter_candidate_25)
 
-which.min(c(k10 = AIC(sentiment_twitter_candidate_10), k15 = AIC(sentiment_twitter_candidate_15),
-          k20 = AIC(sentiment_twitter_candidate_20), k25 = AIC(sentiment_twitter_candidate_25),
-          k30 = AIC(sentiment_twitter_candidate_30), k50 = AIC(sentiment_twitter_candidate_50)))
-which.min(c(k10 = BIC(sentiment_twitter_candidate_10), k15 = BIC(sentiment_twitter_candidate_15),
-            k20 = BIC(sentiment_twitter_candidate_20), k25 = BIC(sentiment_twitter_candidate_25),
-            k30 = BIC(sentiment_twitter_candidate_30), k50 = BIC(sentiment_twitter_candidate_50)))
+summary(sentiment_twitter_candidate_25)
 anova(sentiment_twitter_candidate_20, sentiment_twitter_candidate_25, test="Chisq")
+anova(sentiment_twitter_candidate_25, sentiment_twitter_candidate_50, test="Chisq")
 
 sentiment_debate_candidate <- glm_lda_model(twitter.topics$topics[-dropped.rows,] ,
-                                modified_data = pos.neg, predictors = "candidate")
-AIC(sentiment_debate_candidate); BIC(sentiment_debate_candidate)
+                                modified_data = pos.neg.sub, predictors = "candidate")
+c(AIC(sentiment_twitter_candidate_25), BIC(sentiment_twitter_candidate_25))
+c(AIC(sentiment_debate_candidate), BIC(sentiment_debate_candidate)) # debate is very similar!
 
 ################################################################################
 
@@ -268,8 +286,6 @@ debates <- df_to_corpus_dfm(debate.df, c("applause", "laughter", "booing", "comm
                       "mr", "governor", "senator"))
 debate_corpus <- debates[["corpus"]]
 debate_dfm <- debates[["dfm"]]
-
-debate.aggregated <- 
 
 features(debate_dfm)
 

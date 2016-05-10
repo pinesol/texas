@@ -72,6 +72,30 @@ stepwise_twitter <- function(lda_model_post, modified_data,
 }
 ```
 
+```{r}
+pos.neg.sub <- pos.neg[c("sentiment", "candidate", "subject_matter")]
+levels(pos.neg.sub$candidate) <- c(levels(pos.neg.sub$candidate), "other")
+pos.neg.sub$candidate <- relevel(pos.neg.sub$candidate, ref = "other")
+pos.neg.sub$candidate[is.na(pos.neg.sub$candidate)] <- "other"
+levels(pos.neg.sub$subject_matter) <- c(levels(pos.neg.sub$subject_matter), "other")
+pos.neg.sub$subject_matter[is.na(pos.neg.sub$subject_matter)] <- "other"
+pos.neg.sub$subject_matter <- relevel(pos.neg.sub$subject_matter, ref = "other")
+
+dummy_candidate <- dummy(pos.neg.sub$candidate, 
+                         levels(pos.neg.sub$candidate)[-1])
+dummy_subject_matter <- dummy(pos.neg.sub$subject_matter, 
+                         levels(pos.neg.sub$subject_matter)[-1])
+candidate_only <- cv.glmnet(x = dummy_candidate, y = pos.neg.sub$sentiment, 
+          family = "binomial", alpha = 1, nfolds = 10)
+candidate_subject_only <- cv.glmnet(x = cbind(dummy_candidate, dummy_subject_matter), 
+          y = pos.neg.sub$sentiment, family = "binomial", alpha = 1, nfolds = 10)
+min(candidate_only$cvm)
+min(candidate_subject_only$cvm)
+coef(candidate_only, s="lambda.min")
+coef(candidate_subject_only, s="lambda.min")
+
+```
+
 ```{r, eval=FALSE}
 sentiment_twitter_candidate_10 <- glm_lda_model(simple_lda_10@gamma[-dropped.rows,] ,
                               modified_data = pos.neg, predictors = "candidate")
@@ -123,3 +147,19 @@ step_debate_topics$anova
 summary(step_debate_topics)
 anova(step_debate_topics, step_25_candidate_subject, test="Chisq")
 ```
+
+```{r}
+dummy_candidate <- dummy(pos.neg.sub$candidate, 
+                         levels(pos.neg.sub$candidate)[-nlevels(pos.neg.sub$candidate)])
+dummy_subject_matter <- dummy(pos.neg.sub$candidate, 
+                         levels(pos.neg.sub$candidate)[-nlevels(pos.neg.sub$candidate)])
+candidate_only <- cv.glmnet(x = dummy_candidate, y = pos.neg.sub$sentiment, 
+          family = "binomial", alpha = 1, nfolds = 10)
+candidate_subject_only <- cv.glmnet(x = cbind(dummy_candidate, dummy_subject_matter), 
+          y = pos.neg.sub$sentiment, family = "binomial", alpha = 1, nfolds = 10)
+min(candidate_only$cvm)
+min(candidate_subject_only$cvm)
+coef(candidate_only, s="lambda.min")
+coef(candidate_subject_only, s="lambda.min")
+```
+
