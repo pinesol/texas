@@ -187,7 +187,12 @@ coef(candidate_subject_only, s="lambda.min")
 # significant negative predictors of sentiment: Chris Christie, Donald Trump, Jeb Bush,
 # Huckabee, Rand Paul, Scott Walker, and no candidate mentioned-- basically, everyone but 
 # Kasich, Cruz, and Rubio!
-anova(candidate_only, candidate_subject_only, test = "Chisq")
+candidate_only2 <- glm(sentiment ~ candidate, data = pos.neg.sub, family = "binomial")
+candidate_subject_only2 <- glm(sentiment ~ candidate + subject_matter, data = pos.neg.sub, 
+                               family = "binomial")
+summary(candidate_only2)
+summary(candidate_subject_only2)
+anova(candidate_only2, candidate_subject_only2, test = "Chisq")
 
 sentiment_twitter_candidate_10 <- glm_lda_model(simple_lda_10@gamma[-dropped.rows,] ,
                               modified_data = pos.neg, predictors = "candidate")
