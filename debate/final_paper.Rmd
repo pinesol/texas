@@ -184,3 +184,23 @@ names(rename_subject) <- names(coef(candidate_subject_only2))[c(1,12:22)]
 #coefplot::coefplot(candidate_subject_only2, predictors = "subject_matter", sort="magnitude", newNames = rename_subject)
 anova(candidate_only2, candidate_subject_only2, test = "Chisq")
 ```
+
+
+```{r, cache=FALSE}
+require(dplyr)
+require(reshape2)
+require(ggplot2)
+debate_LDA_15_names[2] <- "mods3"
+topic_theta_by_speaker <- data.frame(debate_LDA_15@gamma, speaker = debate_corpus$documents$speaker)
+# come up with descriptive names for topics
+colnames(topic_theta_by_speaker) <- c(debate_LDA_15_names, "speaker")
+grouped <- group_by(topic_theta_by_speaker, speaker)
+topic_means_by_speaker <- as.data.frame(grouped %>% summarize_each(funs(mean)))
+melted <- reshape2::melt(topic_means_by_speaker, id.vars = "speaker")
+melted.candidate <- filter(melted, speaker != "OTHER" & speaker != "MODERATOR")
+p <- ggplot(melted.candidate, aes(x = speaker, y = value, fill = variable)) 
+p <- p + geom_bar(stat="identity") 
+p <- p + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
+p <- p + labs(fill = "Topic", x = "Candidate", y = "Mean Theta by Topic")
+p
+```

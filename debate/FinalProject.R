@@ -334,22 +334,12 @@ names(beta_terms) <- features(debate_dfm)
 
 
 
-topic_theta_by_speaker <- cbind(debate_10$theta, speaker = out_debate_stm$meta$speaker)
-
-topic_theta_by_speaker <- cbind(debate_8$theta, speaker = out_debate_stm$meta$speaker)
-topic_theta_by_speaker <- as.data.frame(topic_theta_by_speaker)
+debate_LDA_15_names[2] <- "mods3"
+topic_theta_by_speaker <- data.frame(debate_LDA_15@gamma, speaker = debate_corpus$documents$speaker)
 # come up with descriptive names for topics
-colnames(topic_theta_by_speaker) <- c("t1", "t2", "t3", "t4", "t5", 
-                                      "t6", "t7", "t8", "speaker")
-
-colnames(topic_theta_by_speaker) <- c(paste("t", 1:10, sep=""), "speaker")
-
-
-topic_theta_by_speaker$speaker <- factor(topic_theta_by_speaker$speaker, 
-                                            labels = levels(debate.df$speaker))
+colnames(topic_theta_by_speaker) <- c(debate_LDA_15_names, "speaker")
 grouped <- group_by(topic_theta_by_speaker, speaker)
 topic_means_by_speaker <- as.data.frame(grouped %>% summarize_each(funs(mean)))
-topic_means_by_speaker # stacked relative histogram topic dist
 melted <- melt(topic_means_by_speaker, id.vars = "speaker")
 melted.candidate <- filter(melted, speaker != "OTHER" & speaker != "MODERATOR")
 p <- ggplot(melted.candidate, aes(x = speaker, y = value, fill = variable)) 
