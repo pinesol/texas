@@ -1,0 +1,10 @@
+base
+dplyr
+Matrix
+lme4
+quanteda
+foreach
+glmnet
+MASS
+ggplot2
+coefplot
