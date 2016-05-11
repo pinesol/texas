@@ -133,8 +133,8 @@ anova(sentiment_twitter_candidate_25, sentiment_twitter_candidate_50, test="Chis
 ```{r}
 sentiment_debate_candidate <- glm_lda_model(twitter.topics$topics[-dropped.rows,] ,
                                 modified_data = pos.neg.sub, predictors = "candidate")
-AIC(sentiment_debate_candidate); BIC(sentiment_debate_candidate)
-AIC(sentiment_twitter_candidate_25); BIC(sentiment_twitter_candidate_25)
+AIC(sentiment_debate_candidate); AIC(sentiment_twitter_candidate_25);
+BIC(sentiment_debate_candidate); BIC(sentiment_twitter_candidate_25)
 anova(sentiment_debate_candidate, sentiment_twitter_candidate_25, test="Chisq")
 ```
 
