@@ -152,7 +152,7 @@ summary(step_debate_topics)
 anova(step_debate_topics, step_25_candidate_subject, test="Chisq")
 ```
 
-```{r}
+```{r, fig.width = 7}
 step_25_candidate <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], 
                             pos.neg.sub, predictors = c("candidate"))
 step_25_candidate$anova
@@ -164,6 +164,40 @@ step_debate_candidate_topics$anova
 summary(step_debate_candidate_topics)
 anova(step_debate_candidate_topics, step_25_candidate, test="Chisq")
 
+BIC(step_debate_candidate_topics); BIC(step_25_candidate)
+pred.prob.debates <- predict(step_debate_candidate_topics, type="response")
+pred.prob.twitter25 <- predict(step_25_candidate, type="response")
+
+require(ROCR)
+pred.debates <- prediction(predictions = pred.prob.debates, labels = pos.neg.sub$sentiment)
+pred.twitter <- prediction(predictions = pred.prob.twitter25, labels = pos.neg.sub$sentiment)
+roc.debates <- performance(pred.debates, "tpr", "fpr")
+roc.twitter <- performance(pred.twitter, "tpr", "fpr")
+
+ggplot(data = NULL, aes(x=roc.debates@x.values[[1]], y=roc.debates@y.values[[1]], color = "debate")) +
+    geom_point(alpha = 0.3) + xlab(roc.debates@x.name) + ylab(roc.debates@y.name) +
+    geom_line(stat = "smooth", method = "auto", color = "blue", alpha = 0.5) +
+    geom_point(aes(x=roc.twitter@x.values[[1]],
+    y=roc.twitter@y.values[[1]], color = "twitter"), alpha = 0.3) + 
+    geom_line(stat = "smooth", method = "auto", color = "red", alpha = 0.5) +
+    labs(color = "Topic Source", title = "Sentiment Classification Performance")
+
+auc.debates <- performance(pred.debates, "auc")@y.values[[1]]
+auc.twitter <- performance(pred.twitter, "auc")@y.values[[1]]
+auc.debates; auc.twitter
+```
+
+```{r}
+step_25_no <- stepwise_twitter(simple_lda_25@gamma[-dropped.rows,], 
+                            pos.neg.sub, predictors = c())
+step_25_no$anova
+summary(step_25_no)
+
+step_debate_no <- stepwise_twitter(twitter.topics$topics[-dropped.rows,],  
+                        pos.neg.sub, predictors = c())
+step_debate_no$anova
+summary(step_debate_no)
+anova(step_debate_no, step_25_no, test="Chisq")
 ```
 
 ```{r}
@@ -197,7 +231,6 @@ names(rename_subject) <- names(coef(candidate_subject_only2))[c(1,12:22)]
 #coefplot::coefplot(candidate_subject_only2, predictors = "subject_matter", sort="magnitude", newNames = rename_subject)
 anova(candidate_only2, candidate_subject_only2, test = "Chisq")
 ```
-
 
 ```{r, cache=FALSE}
 require(dplyr)

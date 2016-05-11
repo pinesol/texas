@@ -8,3 +8,5 @@ glmnet
 MASS
 ggplot2
 coefplot
+gplots
+ROCR
