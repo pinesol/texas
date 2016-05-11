@@ -374,8 +374,25 @@ p
 # TODO find the tweets with these terms. Make a DFM from those tweets with the vocab being the terms from the STM.
 # TODO fit a logistic regression from the DRM rows to the sentiment score.
 
+sent.topic3 <- summarize(group_by(topic3, candidate), mean(sentiment0))
+sent.topic4 <- summarize(group_by(topic4, candidate), mean(sentiment0))
+sent.topic9 <- summarize(group_by(topic9, candidate), mean(sentiment0))
+colnames(sent.topic3) <- c("candidate", "sentiment")
+colnames(sent.topic4) <- c("candidate", "sentiment")
+colnames(sent.topic9) <- c("candidate", "sentiment")
+t3 <- ggplot(sent.topic3, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5)) + labs(title = "Foreign Policy")
+t4 <- ggplot(sent.topic4, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5)) + labs(title = "Social Security")
+t9 <- ggplot(sent.topic9, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5))+ labs(title = "Budget")
+
+filter(topic3, candidate == "Jeb Bush" & sentiment == "Negative")$text[6]
+filter(topic4, candidate == "Jeb Bush" & sentiment == "Negative")$text[c(8, 2)]
+filter(topic9, candidate == "Chris Christie" & sentiment == "Negative")$text[2]
 
 
-
-
+t3
+t4
+t9
 

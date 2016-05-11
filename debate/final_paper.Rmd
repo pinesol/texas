@@ -167,6 +167,9 @@ anova(step_debate_candidate_topics, step_25_candidate, test="Chisq")
 BIC(step_debate_candidate_topics); BIC(step_25_candidate)
 pred.prob.debates <- predict(step_debate_candidate_topics, type="response")
 pred.prob.twitter25 <- predict(step_25_candidate, type="response")
+pred.prob.labels <- predict(candidate_subject_only2, type="response")
+pred.crowdflower <- prediction(predictions = pred.prob.labels, labels = pos.neg.sub$sentiment)
+auc.crowdflower <- performance(pred.crowdflower, "auc")@y.values[[1]]
 
 require(ROCR)
 pred.debates <- prediction(predictions = pred.prob.debates, labels = pos.neg.sub$sentiment)
@@ -184,7 +187,10 @@ ggplot(data = NULL, aes(x=roc.debates@x.values[[1]], y=roc.debates@y.values[[1]]
 
 auc.debates <- performance(pred.debates, "auc")@y.values[[1]]
 auc.twitter <- performance(pred.twitter, "auc")@y.values[[1]]
-auc.debates; auc.twitter
+auc.debates; auc.twitter; auc.crowdflower
+
+AIC(candidate_subject_only2); AIC(step_25_candidate)
+BIC(candidate_subject_only2); BIC(step_25_candidate)
 ```
 
 ```{r}
@@ -230,6 +236,8 @@ rename_subject <- c("other", gsub("subject_matter*", "", names(coef(candidate_su
 names(rename_subject) <- names(coef(candidate_subject_only2))[c(1,12:22)]
 #coefplot::coefplot(candidate_subject_only2, predictors = "subject_matter", sort="magnitude", newNames = rename_subject)
 anova(candidate_only2, candidate_subject_only2, test = "Chisq")
+
+BIC(candidate_subject_only2); 
 ```
 
 ```{r, cache=FALSE}
@@ -249,4 +257,17 @@ p <- p + geom_bar(stat="identity")
 p <- p + theme(axis.text.x=element_text(angle = 90, vjust = 0.5))
 p <- p + labs(fill = "Topic", x = "Candidate", y = "Mean Theta by Topic")
 p
+```
+
+```{r}
+t3 <- ggplot(sent.topic3, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5)) + labs(title = "Foreign Policy")
+t4 <- ggplot(sent.topic4, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5)) + labs(title = "Social Security")
+t9 <- ggplot(sent.topic9, aes(x=candidate, y=sentiment)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, vjust = 0.5))+ labs(title = "Budget")
+
+filter(topic3, candidate == "Jeb Bush" & sentiment == "Negative")$text[6]
+filter(topic4, candidate == "Jeb Bush" & sentiment == "Negative")$text[c(8, 2)]
+filter(topic9, candidate == "Chris Christie" & sentiment == "Negative")$text[2]
 ```
